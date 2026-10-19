@@ -97,6 +97,8 @@ def start(job_id):
         return jsonify(error='Hız 0,5× ile 2,5× arasında olmalı.'), 400
     if body.get('resolution') not in pipeline.RESOLUTIONS:
         return jsonify(error='Bilinmeyen çözünürlük.'), 400
+    if body.get('transition', 'cut') not in ('cut', 'fade'):
+        return jsonify(error='Bilinmeyen slayt geçişi.'), 400
     narrations = body.get('narrations') if body.get('auto_tags') else None
     if narrations is not None and not isinstance(narrations, dict):
         return jsonify(error='Geçersiz seslendirme metni.'), 400
@@ -105,7 +107,8 @@ def start(job_id):
             'voice_id': (body.get('voice_id') or pipeline.DEFAULT_VOICE).strip(),
             'model': (body.get('model') or pipeline.DEFAULT_MODEL).strip(),
             'language': (body.get('language') or '').strip(),
-            'speed': speed, 'resolution': body['resolution'], 'original_name': job['name']}
+            'speed': speed, 'resolution': body['resolution'], 'transition': body.get('transition', 'cut'),
+            'original_name': job['name']}
     job.update(status='running', stage='Başlatılıyor', progress=0, log=[], result=None, error=None,
                settings={k: v for k, v in opts.items() if k not in ('api_key', 'llm_key', 'narrations')})
     if narrations:

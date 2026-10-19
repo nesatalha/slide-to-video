@@ -33,6 +33,7 @@ RATE = 48000
 LEAD = 0.2           # silence before narration (seconds)
 TAIL = 0.6           # minimum silence after narration (seconds)
 SILENT_SLIDE = 3.0   # how long a slide without notes stays on screen
+FADE = 0.4           # cross-fade length when soft transitions are on (seconds)
 RESOLUTIONS = {'480p': (854, 480), '720p': (1280, 720), '1080p': (1920, 1080)}
 DEFAULT_VOICE = '7VqWGAWwo2HMrylfKrcm'  # Fatih Yıldırım - Deep, Clear and Rich
 DEFAULT_MODEL = 'eleven_v4'
@@ -362,21 +363,24 @@ def atempo_chain(speed):
     return ','.join(parts)
 
 
-def build_segment(n, image, audio, speed, size, seg_dir):
-    """Still image + narration, both exactly `frames / FPS` seconds long."""
+def build_segment(n, image, audio, speed, size, seg_dir, prev=None, fade=0.0):
+    """Still image + narration, both exactly `frames / FPS` seconds long.
+    With `prev` and `fade`, the clip opens by cross-fading from the previous slide; narration waits for it."""
     w, h = size
+    fade = fade if prev is not None else 0.0
+    lead_s = max(LEAD, fade + 0.05) if fade else LEAD
     if audio is not None:
         filters = 'loudnorm=I=-16:TP=-1.5:LRA=11'
         if abs(speed - 1.0) > 1e-3:
             filters = atempo_chain(speed) + ',' + filters
         pcm = ffmpeg(['-i', str(audio), '-vn', '-af', filters, '-ac', '1', '-ar', str(RATE), '-f', 's16le', '-'])
         voice = len(pcm) / (RATE * 2)
-        frames = math.ceil((voice + LEAD + TAIL) * FPS)
+        frames = math.ceil((voice + lead_s + TAIL) * FPS)
     else:
         pcm, voice = b'', 0.0
-        frames = round(SILENT_SLIDE * FPS)
+        frames = max(round(SILENT_SLIDE * FPS), math.ceil(fade * FPS) + FPS)
     seconds = frames / FPS
-    lead = round(LEAD * RATE) if pcm else 0
+    lead = round(lead_s * RATE) if pcm else 0
     tail = round(seconds * RATE) - lead - len(pcm) // 2
     wav = seg_dir / f'seg-{n:03d}.wav'
     with wave.open(str(wav), 'wb') as f:
@@ -387,7 +391,14 @@ def build_segment(n, image, audio, speed, size, seg_dir):
     video = seg_dir / f'seg-{n:03d}.mp4'
     vf = (f'scale={w}:{h}:force_original_aspect_ratio=decrease:flags=lanczos,'
           f'pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:color=white,setsar=1')
-    ffmpeg(['-loop', '1', '-framerate', str(FPS), '-i', str(image), '-vf', vf, '-frames:v', str(frames),
+    if fade:
+        inputs = ['-loop', '1', '-framerate', str(FPS), '-t', f'{fade:.3f}', '-i', str(prev),
+                  '-loop', '1', '-framerate', str(FPS), '-i', str(image)]
+        graph = ['-filter_complex', f'[0:v]{vf},format=yuv420p[a];[1:v]{vf},format=yuv420p[b];'
+                                    f'[a][b]xfade=transition=fade:duration={fade:.3f}:offset=0[v]', '-map', '[v]']
+    else:
+        inputs, graph = ['-loop', '1', '-framerate', str(FPS), '-i', str(image)], ['-vf', vf]
+    ffmpeg(inputs + graph + ['-frames:v', str(frames),
             '-an', '-c:v', 'libx264', '-preset', 'fast', '-tune', 'stillimage', '-crf', '18',
             '-pix_fmt', 'yuv420p', '-r', str(FPS), '-video_track_timescale', '12800', '-threads', '2', str(video)])
     return {'slide': n, 'seconds': seconds, 'voice_seconds': round(voice, 2), 'video': video, 'audio': wav}
@@ -427,7 +438,8 @@ def tag_summary(info):
 
 
 def run(job_dir, pptx_path, opts, cache_dir, report):
-    """opts: api_key, voice_id, model, language, speed, resolution, narrations / auto_tags + llm_key.
+    """opts: api_key, voice_id, model, language, speed, resolution, transition ('cut' | 'fade'),
+    narrations / auto_tags + llm_key.
     report(stage, progress, message)."""
     size = RESOLUTIONS[opts['resolution']]
     speed = float(opts['speed'])
@@ -489,8 +501,10 @@ def run(job_dir, pptx_path, opts, cache_dir, report):
     segments, done = {}, 0
     report('Video oluşturuluyor', 0.62, 'Slayt klipleri kodlanıyor')
     with concurrent.futures.ThreadPoolExecutor(max_workers=3) as ex:
-        futures = [ex.submit(build_segment, s['slide'], images[s['slide']], audio.get(s['slide']), speed, size, seg_dir)
-                   for s in slides]
+        fade = FADE if opts.get('transition') == 'fade' else 0.0
+        futures = [ex.submit(build_segment, s['slide'], images[s['slide']], audio.get(s['slide']), speed, size, seg_dir,
+                             images[slides[i - 1]['slide']] if i else None, fade)
+                   for i, s in enumerate(slides)]
         for fut in concurrent.futures.as_completed(futures):
             seg = fut.result()
             segments[seg['slide']] = seg

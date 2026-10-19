@@ -168,6 +168,12 @@
       <button type="button" data-v="720p">720p</button>
       <button type="button" data-v="1080p" class="on">1080p</button>
     </div>
+    <label>Slayt geçişi</label>
+    <div class="seg" id="trans">
+      <button type="button" data-v="cut" class="on">Kesme</button>
+      <button type="button" data-v="fade">Yumuşak geçiş</button>
+    </div>
+    <p class="hint" id="transHint"></p>
   </section>
 
   <section>
@@ -199,7 +205,7 @@ const store = {
   get(k) { try { return localStorage.getItem(k); } catch { return null; } },
   set(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} },
 };
-let job = null, cfg = {}, polling = null, resolution = '1080p', narr = null;
+let job = null, cfg = {}, polling = null, resolution = '1080p', transition = 'cut', narr = null;
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fmtTime = s => { s = Math.round(s); return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; };
@@ -357,7 +363,7 @@ async function start() {
   try {
     job = await api(`/api/jobs/${job.id}/start`, {method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({api_key: $('key').value.trim(), voice_id: voice, speed: +$('speed').value,
-        resolution, model: $('model').value.trim(), language: $('language').value,
+        resolution, transition, model: $('model').value.trim(), language: $('language').value,
         auto_tags: $('autoTags').checked, narrations: $('autoTags').checked ? narr : null,
         llm_key: $('llmKey').value.trim()})});
     renderJob(); poll();
@@ -386,6 +392,10 @@ $('speed').oninput = () => setSpeed($('speed').value);
 document.querySelectorAll('#speedPresets button').forEach(b => b.onclick = () => setSpeed(b.dataset.v));
 function setRes(v) { resolution = v; store.set('res', v); document.querySelectorAll('#res button').forEach(b => b.classList.toggle('on', b.dataset.v === v)); }
 document.querySelectorAll('#res button').forEach(b => b.onclick = () => setRes(b.dataset.v));
+function setTrans(v) { transition = v; store.set('trans', v); document.querySelectorAll('#trans button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  $('transHint').textContent = v === 'fade' ? 'Slaytlar 0,4 sn içinde birbirine karışır; konuşmalar arasında yaklaşık 1 sn sessizlik olur.'
+    : 'Slayt anında değişir; konuşmalar arasında yaklaşık 0,8 sn sessizlik olur.'; }
+document.querySelectorAll('#trans button').forEach(b => b.onclick = () => setTrans(b.dataset.v));
 $('go').onclick = start;
 $('autoTags').onchange = () => { store.set('autoTags', $('autoTags').checked ? '1' : null); renderNarr(); };
 $('showLlmKey').onclick = () => { const k = $('llmKey'); k.type = k.type === 'password' ? 'text' : 'password'; $('showLlmKey').textContent = k.type === 'password' ? 'Göster' : 'Gizle'; };
@@ -400,6 +410,7 @@ $('resetTags').onclick = () => { narr = null; $('tagInfo').innerHTML = ''; rende
   setVoices([]);
   setSpeed(store.get('speed') || 1);
   setRes(store.get('res') || '1080p');
+  setTrans(store.get('trans') || 'cut');
   const saved = store.get('key');
   if (saved) { $('key').value = saved; $('remember').checked = true; loadAccount(); }
   const savedLlm = store.get('llmKey');
