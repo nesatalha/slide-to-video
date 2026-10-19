@@ -22,7 +22,7 @@ if [ ! -x .venv/bin/python ]; then
   echo "İlk kurulum yapılıyor (bir kez, birkaç dakika sürebilir)..."
   python3 -m venv .venv
 fi
-.venv/bin/python -c "import flask, pptx, pymupdf, imageio_ffmpeg, requests" 2>/dev/null \
+.venv/bin/python -c "import flask, pptx, pymupdf, imageio_ffmpeg, requests, anthropic, openai" 2>/dev/null \
   || .venv/bin/pip install --no-cache-dir -r requirements.txt
 
 (sleep 1.5 && { command -v open >/dev/null && open http://127.0.0.1:8765 || xdg-open http://127.0.0.1:8765; } >/dev/null 2>&1) &

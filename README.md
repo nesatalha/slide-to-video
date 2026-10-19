@@ -41,6 +41,16 @@ Keynote yüklü bir Mac'te LibreOffice'i zorlamak için: `SLIDE2VIDEO_RENDERER=l
 
 Gelişmiş bölümünde model (varsayılan `eleven_v4`) ve dil (varsayılan Türkçe) değiştirilebilir.
 
+## İfade etiketleri
+"Notlara ifade etiketleri ekle" seçeneği notların arasına ElevenLabs ses etiketleri yerleştirir: `[short pause]`, `[slowly]`, `[calmly]`, `[warmly]`, `[thoughtful]`, `[inhales]`, `[exhales]` gibi. Böylece anlatım duraklamalı, vurgulu ve daha doğal olur. Not metninin kendisi hiçbir zaman değişmez; yalnızca etiketler eklenir.
+
+- **OpenAI veya Anthropic API anahtarı girerseniz** etiketleri yapay zekâ yerleştirir. `sk-ant-` ile başlayan anahtarlar Claude (`claude-opus-5-5`), diğerleri OpenAI (`gpt-5.6`, yoksa `gpt-5.5`) ile kullanılır. Bu, o hesaptan küçük bir ücret düşer. Anahtar diske yazılmaz.
+- **Anahtar yoksa** etiketler kural tabanlı eklenir: liste maddelerinden önce kısa duraklama, "temel kural şudur" gibi önemli cümlelerde yavaşlama, soru cümlelerinde düşünceli ton, açılış ve kapanışta sıcak ton. Ücretsizdir ve internet gerektirmez. Kural tabanlı ekleme nefes etiketleri kullanmaz.
+- Model bir slaytta metni değiştirirse ya da yanıt veremezse, o slayt için otomatik olarak kurallar kullanılır. İçinde zaten etiket bulunan notlara dokunulmaz.
+- **Etiketleri oluştur ve göster** düğmesiyle sonucu video oluşturmadan önce görebilir, her slaytın metnini elle düzenleyebilirsiniz. Önizleme yapmadan videoyu başlatırsanız etiketler video sırasında eklenir.
+
+Etiketli metin yeni bir metin sayıldığı için ilk seferde yeniden seslendirilir ve etiket karakterleri de krediye dahil olabilir. OpenAI modelini değiştirmek için `SLIDE2VIDEO_OPENAI_MODEL=<model> ./run.sh` kullanabilirsiniz.
+
 ## Kredi
 Üretilen seslendirmeler `data/tts-cache` klasöründe saklanır. Aynı sunumu farklı hız veya çözünürlükte yeniden oluşturmak kredi harcamaz. Kredi biterse kredi yükleyip tekrar başlatın; yalnızca eksik slaytlar ücretlendirilir.
 
@@ -48,6 +58,7 @@ Uygulamanın ürettiği her şey `data/` klasöründedir. Yer açmak için bu kl
 
 ## Nasıl çalışır
 - Keynote (yoksa LibreOffice, `soffice --headless --convert-to pdf`) sunumu PDF olarak dışa aktarır, PyMuPDF her sayfayı seçilen çözünürlükte görüntüye çevirir.
+- İsteğe bağlı olarak notlara ifade etiketleri eklenir (yapay zekâ veya kurallarla).
 - Her slayt için tek bir ElevenLabs isteği yapılır. Model yalnızca Text-to-Dialogue ile sunuluyorsa uygulama otomatik olarak ona geçer.
 - Ses seviyesi -16 LUFS'a normalize edilir. Her slaytın başına 200 ms, sonuna en az 600 ms sessizlik eklenir ve klip uzunluğu kare sayısıyla birebir eşlenir.
 - Klipler birleştirilir. Her slayt için bir bölüm (chapter) içeren tek bir MP4 oluşur ve dosyanın tamamı bir kez çözülerek kontrol edilir.

@@ -12,6 +12,7 @@ import json
 import math
 import os
 import platform
+import re
 import shutil
 import subprocess
 import tempfile
@@ -295,7 +296,8 @@ def synthesize(text, key, voice, model, language, cache_dir):
     tmp = dest.with_suffix('.part')
     if FAKE_TTS:
         aiff = dest.with_suffix('.aiff')
-        subprocess.run(['say', '-r', '190', '-o', str(aiff), text], check=True)
+        spoken = ' '.join(re.sub(r'\[[^\[\]]*\]', ' ', text).split())  # `say` would read tags aloud
+        subprocess.run(['say', '-r', '190', '-o', str(aiff), spoken], check=True)
         ffmpeg(['-i', str(aiff), '-c:a', 'libmp3lame', '-b:a', '128k', '-f', 'mp3', str(tmp)])
         aiff.unlink()
     else:
@@ -412,8 +414,21 @@ def concat(segments, titles, out_path, work, title):
 
 # ---------------------------------------------------------------- whole job
 
+def tag_summary(info):
+    msg = ('Etiketleri yapay zekâ yerleştirdi (' + info['method'] + ')') if info['method'] != 'kural' \
+        else 'Etiketler kural tabanlı eklendi'
+    def nums(ns, many, one):
+        return f'{", ".join(map(str, ns))} numaralı {many if len(ns) > 1 else one}'
+    if info['fallback']:
+        msg += f'; {nums(info["fallback"], "slaytlarda", "slaytta")} model sonucu kullanılamadığı için kurallar uygulandı'
+    if info['kept']:
+        msg += f'; {nums(info["kept"], "slaytlardaki", "slayttaki")} mevcut etiketlere dokunulmadı'
+    return msg + '.'
+
+
 def run(job_dir, pptx_path, opts, cache_dir, report):
-    """opts: api_key, voice_id, model, language, speed, resolution. report(stage, progress, message)."""
+    """opts: api_key, voice_id, model, language, speed, resolution, narrations / auto_tags + llm_key.
+    report(stage, progress, message)."""
     size = RESOLUTIONS[opts['resolution']]
     speed = float(opts['speed'])
     free = shutil.disk_usage(job_dir).free
@@ -435,6 +450,17 @@ def run(job_dir, pptx_path, opts, cache_dir, report):
     else:
         raise PipelineError(f'{tool} {all_count} slayt için {len(pages)} sayfa üretti '
                             f'({len(slides)} görünür slayt bekleniyordu).')
+
+    narrations = {int(k): v for k, v in (opts.get('narrations') or {}).items()}
+    if opts.get('auto_tags') and not narrations:
+        import tagging
+        report('İfade etiketleri ekleniyor', 0.05, 'Notlara etiket ekleniyor')
+        narrations, info = tagging.tag_notes(slides, opts.get('llm_key', ''))
+        report('İfade etiketleri ekleniyor', 0.07, tag_summary(info))
+    for s in slides:
+        if s['notes'] and (narrations.get(s['slide']) or '').strip():
+            s['notes'] = ' '.join(narrations[s['slide']].split())
+            s['chars'] = len(s['notes'])
 
     voiced = [s for s in slides if s['notes']]
     audio, done = {}, 0

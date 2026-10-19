@@ -3,3 +3,5 @@ python-pptx>=1.0
 pymupdf>=1.24
 imageio-ffmpeg>=0.5
 requests>=2.31
+anthropic>=1.15
+openai>=3.0

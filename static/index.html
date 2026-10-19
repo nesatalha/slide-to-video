@@ -66,6 +66,13 @@
   video { width: 100%; border-radius: 8px; background: #000; margin: 12px 0; }
   .actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
   a.button { text-decoration: none; display: inline-block; }
+  textarea { width: 100%; min-height: 90px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--bg); color: var(--ink); font: inherit; font-size: 13px; resize: vertical; }
+  .narr { border-top: 1px solid var(--line); padding: 10px 0; }
+  .narr .t { font-weight: 600; font-size: 13px; margin-bottom: 4px; }
+  .narrs { max-height: 420px; overflow: auto; margin-top: 10px; }
+  .check { display: flex; gap: 8px; align-items: flex-start; font-weight: 600; margin: 0; }
+  .check input { margin-top: 4px; }
   .hidden { display: none !important; }
 </style>
 </head>
@@ -122,7 +129,30 @@
   </section>
 
   <section>
-    <h2><span class="n">3</span>Video</h2>
+    <h2><span class="n">3</span>İfade etiketleri</h2>
+    <label class="check"><input type="checkbox" id="autoTags">
+      <span>Notlara ifade etiketleri ekle <span class="hint">([short pause], [slowly], [calmly], [inhales] gibi duraklama, vurgu ve nefes etiketleri)</span></span></label>
+    <div id="tagBox" class="hidden">
+      <label for="llmKey">OpenAI veya Anthropic API anahtarı <span class="hint">(isteğe bağlı)</span></label>
+      <div class="row">
+        <input type="password" id="llmKey" autocomplete="off" spellcheck="false" placeholder="sk-… veya sk-ant-…">
+        <button id="showLlmKey" type="button">Göster</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <label class="hint" style="margin:0;font-weight:400"><input type="checkbox" id="rememberLlm"> Bu tarayıcıda hatırla</label>
+      </div>
+      <p class="hint" id="tagMode" style="margin:8px 0 0"></p>
+      <div class="actions" style="margin-top:12px">
+        <button id="previewTags" type="button">Etiketleri oluştur ve göster</button>
+        <button id="resetTags" type="button" class="hidden">Etiketleri sıfırla</button>
+      </div>
+      <div id="tagInfo"></div>
+      <div class="narrs hidden" id="narrList"></div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">4</span>Video</h2>
     <label for="speed">Hız</label>
     <div class="speed">
       <input type="range" id="speed" min="0.8" max="2" step="0.05" value="1">
@@ -169,7 +199,7 @@ const store = {
   get(k) { try { return localStorage.getItem(k); } catch { return null; } },
   set(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} },
 };
-let job = null, cfg = {}, polling = null, resolution = '1080p';
+let job = null, cfg = {}, polling = null, resolution = '1080p', narr = null;
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fmtTime = s => { s = Math.round(s); return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; };
@@ -252,7 +282,7 @@ async function upload(file) {
   showError(''); $('result').classList.add('hidden'); $('progress').classList.add('hidden');
   $('dropTitle').textContent = file.name + ' okunuyor…';
   const fd = new FormData(); fd.append('deck', file);
-  try { job = await api('/api/upload', {method: 'POST', body: fd}); store.set('job', job.id); renderDeck(); }
+  try { job = await api('/api/upload', {method: 'POST', body: fd}); store.set('job', job.id); narr = null; $('tagInfo').innerHTML = ''; renderDeck(); renderNarr(); }
   catch (e) { showError(e.message); $('dropTitle').textContent = '.pptx dosyasını buraya bırakın veya seçmek için tıklayın'; }
 }
 
@@ -284,6 +314,41 @@ async function poll() {
   if (job.status === 'running') polling = setTimeout(poll, 1500);
 }
 
+function tagModeText() {
+  const k = $('llmKey').value.trim();
+  $('tagMode').textContent = !k ? 'Anahtar yok: etiketler kural tabanlı eklenir (ücretsiz, çevrimdışı).'
+    : k.startsWith('sk-ant-') ? 'Anthropic anahtarı: etiketleri Claude yerleştirir. Anahtar diske yazılmaz.'
+    : 'OpenAI anahtarı: etiketleri GPT yerleştirir. Anahtar diske yazılmaz.';
+}
+
+function renderNarr() {
+  const on = $('autoTags').checked;
+  $('tagBox').classList.toggle('hidden', !on);
+  $('narrList').classList.toggle('hidden', !narr);
+  $('resetTags').classList.toggle('hidden', !narr);
+  $('previewTags').textContent = narr ? 'Etiketleri yeniden oluştur' : 'Etiketleri oluştur ve göster';
+  if (!narr || !job) { $('narrList').innerHTML = ''; return; }
+  const voiced = job.slides.filter(s => !s.hidden && s.notes);
+  $('narrList').innerHTML = '<p class="hint" style="margin:0 0 6px">Metni düzenleyebilirsiniz. Videoda bu metinler seslendirilir.</p>'
+    + voiced.map(s => `<div class="narr"><div class="t">${s.slide} · ${esc(s.title)}</div>
+      <textarea data-n="${s.slide}" spellcheck="false">${esc(narr[s.slide] ?? s.notes)}</textarea></div>`).join('');
+  $('narrList').querySelectorAll('textarea').forEach(t => t.oninput = () => { narr[t.dataset.n] = t.value; });
+}
+
+async function previewTags() {
+  if (!job) { showError('Önce bir sunum yükleyin.'); return; }
+  const btn = $('previewTags');
+  btn.disabled = true; btn.textContent = 'Etiketler oluşturuluyor…';
+  $('tagInfo').innerHTML = '';
+  try {
+    const r = await api(`/api/jobs/${job.id}/tags`, {method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({llm_key: $('llmKey').value.trim()})});
+    narr = r.narrations; job.narrations = narr;
+    $('tagInfo').innerHTML = `<div class="msg ${r.info.fallback.length ? 'warn' : 'ok'}">${esc(r.summary)}</div>`;
+  } catch (e) { $('tagInfo').innerHTML = `<div class="msg err">${esc(e.message)}</div>`; }
+  finally { btn.disabled = false; renderNarr(); }
+}
+
 async function start() {
   const voice = $('voice').value === '__custom' ? $('customVoice').value.trim() : $('voice').value;
   if (!voice) { showError('Bir ses seçin veya ses kimliği yapıştırın.'); return; }
@@ -292,7 +357,9 @@ async function start() {
   try {
     job = await api(`/api/jobs/${job.id}/start`, {method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({api_key: $('key').value.trim(), voice_id: voice, speed: +$('speed').value,
-        resolution, model: $('model').value.trim(), language: $('language').value})});
+        resolution, model: $('model').value.trim(), language: $('language').value,
+        auto_tags: $('autoTags').checked, narrations: $('autoTags').checked ? narr : null,
+        llm_key: $('llmKey').value.trim()})});
     renderJob(); poll();
   } catch (e) { showError(e.message); }
 }
@@ -320,6 +387,12 @@ document.querySelectorAll('#speedPresets button').forEach(b => b.onclick = () =>
 function setRes(v) { resolution = v; store.set('res', v); document.querySelectorAll('#res button').forEach(b => b.classList.toggle('on', b.dataset.v === v)); }
 document.querySelectorAll('#res button').forEach(b => b.onclick = () => setRes(b.dataset.v));
 $('go').onclick = start;
+$('autoTags').onchange = () => { store.set('autoTags', $('autoTags').checked ? '1' : null); renderNarr(); };
+$('showLlmKey').onclick = () => { const k = $('llmKey'); k.type = k.type === 'password' ? 'text' : 'password'; $('showLlmKey').textContent = k.type === 'password' ? 'Göster' : 'Gizle'; };
+$('llmKey').addEventListener('input', () => { if ($('rememberLlm').checked) store.set('llmKey', $('llmKey').value.trim()); tagModeText(); });
+$('rememberLlm').onchange = () => store.set('llmKey', $('rememberLlm').checked ? $('llmKey').value.trim() : null);
+$('previewTags').onclick = previewTags;
+$('resetTags').onclick = () => { narr = null; $('tagInfo').innerHTML = ''; renderNarr(); };
 
 (async function init() {
   cfg = await api('/api/config').catch(() => ({}));
@@ -329,13 +402,18 @@ $('go').onclick = start;
   setRes(store.get('res') || '1080p');
   const saved = store.get('key');
   if (saved) { $('key').value = saved; $('remember').checked = true; loadAccount(); }
+  const savedLlm = store.get('llmKey');
+  if (savedLlm) { $('llmKey').value = savedLlm; $('rememberLlm').checked = true; }
+  $('autoTags').checked = store.get('autoTags') === '1';
+  tagModeText();
   if (cfg.free_mb != null && cfg.free_mb < 1500)
     $('error').innerHTML = `<div class="msg warn">Diskte yalnızca ${cfg.free_mb} MB boş alan var. Uzun bir 1080p video oluşturulurken yaklaşık 1 GB alan gerekir.</div>`;
   const last = store.get('job');
   if (last) {
-    try { job = await api(`/api/jobs/${last}`); renderDeck(); renderJob(); if (job.status === 'running') poll(); }
+    try { job = await api(`/api/jobs/${last}`); narr = job.narrations || null; renderDeck(); renderJob(); if (job.status === 'running') poll(); }
     catch { store.set('job', null); }
   }
+  renderNarr();
   refreshGo();
 })();
 </script>

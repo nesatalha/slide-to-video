@@ -1,7 +1,7 @@
 """Local web app: upload a PPTX, get a narrated video back.
 
 Run:  ./run.sh   (serves http://127.0.0.1:8765, local machine only)
-The ElevenLabs API key is held in memory for the running job only; it is never written to disk.
+The ElevenLabs (and optional OpenAI/Anthropic) API keys are held in memory for the running job only; it is never written to disk.
 """
 import json
 import shutil
@@ -13,6 +13,7 @@ from pathlib import Path
 from flask import Flask, abort, jsonify, request, send_file, send_from_directory
 
 import pipeline
+import tagging
 
 ROOT = Path(__file__).resolve().parent
 DATA = ROOT / 'data'
@@ -96,13 +97,19 @@ def start(job_id):
         return jsonify(error='Hız 0,5× ile 2,5× arasında olmalı.'), 400
     if body.get('resolution') not in pipeline.RESOLUTIONS:
         return jsonify(error='Bilinmeyen çözünürlük.'), 400
-    opts = {'api_key': key,
+    narrations = body.get('narrations') if body.get('auto_tags') else None
+    if narrations is not None and not isinstance(narrations, dict):
+        return jsonify(error='Geçersiz seslendirme metni.'), 400
+    opts = {'api_key': key, 'auto_tags': bool(body.get('auto_tags')), 'narrations': narrations,
+            'llm_key': (body.get('llm_key') or '').strip(),
             'voice_id': (body.get('voice_id') or pipeline.DEFAULT_VOICE).strip(),
             'model': (body.get('model') or pipeline.DEFAULT_MODEL).strip(),
             'language': (body.get('language') or '').strip(),
             'speed': speed, 'resolution': body['resolution'], 'original_name': job['name']}
     job.update(status='running', stage='Başlatılıyor', progress=0, log=[], result=None, error=None,
-               settings={k: v for k, v in opts.items() if k != 'api_key'})
+               settings={k: v for k, v in opts.items() if k not in ('api_key', 'llm_key', 'narrations')})
+    if narrations:
+        job['narrations'] = narrations
     save(job)
 
     def report(stage, progress, message):
@@ -122,6 +129,24 @@ def start(job_id):
 
     threading.Thread(target=work, daemon=True).start()
     return jsonify(public(job))
+
+
+@app.post('/api/jobs/<job_id>/tags')
+def tags(job_id):
+    """Preview: tag the notes (model if an OpenAI/Anthropic key is given, rules otherwise)."""
+    job = jobs.get(job_id) or abort(404)
+    body = request.get_json(force=True)
+    visible = [s for s in job['slides'] if not s['hidden']]
+    try:
+        narrations, info = tagging.tag_notes(visible, body.get('llm_key', ''))
+    except pipeline.PipelineError as e:
+        return jsonify(error=str(e)), 400
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify(error=f'Etiketler oluşturulamadı: {type(e).__name__}: {e}'), 500
+    job['narrations'] = {str(k): v for k, v in narrations.items()}
+    save(job)
+    return jsonify(narrations=job['narrations'], info=info, summary=pipeline.tag_summary(info))
 
 
 @app.get('/api/jobs/<job_id>/video')

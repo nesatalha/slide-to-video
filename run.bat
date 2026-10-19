@@ -38,7 +38,7 @@ if not exist ".venv\Scripts\python.exe" (
   echo İlk kurulum yapılıyor ^(bir kez, birkaç dakika sürebilir^)...
   %PY% -m venv .venv || (pause & exit /b 1)
 )
-".venv\Scripts\python.exe" -c "import flask, pptx, pymupdf, imageio_ffmpeg, requests" >nul 2>&1
+".venv\Scripts\python.exe" -c "import flask, pptx, pymupdf, imageio_ffmpeg, requests, anthropic, openai" >nul 2>&1
 if errorlevel 1 (
   ".venv\Scripts\python.exe" -m pip install --no-cache-dir -r requirements.txt || (pause & exit /b 1)
 )
