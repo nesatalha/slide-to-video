@@ -10,6 +10,9 @@ on:
 permissions:
   contents: read
 
+env:
+  PYTHONUTF8: '1'  # the build and smoke scripts print Turkish text; Windows runners default to cp1252
+
 jobs:
   build:
     strategy:
@@ -24,8 +27,8 @@ jobs:
             exe: dist/Slayttan Videoya.app/Contents/MacOS/SlayttanVideoya
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: pip
@@ -37,7 +40,7 @@ jobs:
         run: python packaging/build.py "${{ github.ref_type == 'tag' && github.ref_name || '0.0.0' }}"
       - name: Smoke test
         run: python packaging/smoke.py "${{ matrix.exe }}"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: package-${{ matrix.os }}
           path: dist/*.zip
@@ -50,7 +53,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
         with:
           pattern: package-*
           merge-multiple: true

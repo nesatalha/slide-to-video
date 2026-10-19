@@ -70,6 +70,9 @@ def main():
         log = open(data / 'log.txt', 'a', encoding='utf-8', buffering=1)
         sys.stdout = sys.stdout or log
         sys.stderr = sys.stderr or log
+    for stream in (sys.stdout, sys.stderr):  # Turkish text must not crash when output goes to a pipe or file
+        if hasattr(stream, 'reconfigure'):
+            stream.reconfigure(encoding='utf-8', errors='replace')
     if sys.platform == 'win32':
         try:
             import ctypes
