@@ -8,13 +8,15 @@ PowerPoint sunumunu seslendirilmiş bir MP4 videoya çeviren, bilgisayarınızda
 - **Python 3.10 veya üstü**: https://www.python.org/downloads/ (Windows'ta kurulumda "Add python.exe to PATH" seçeneğini işaretleyin.)
 - Slaytları görüntüye çevirmek için şunlardan biri:
   - **macOS:** **Keynote** (App Store'da ücretsiz). Slaytlar orijinal görünümleriyle dışa aktarılır. Keynote yoksa LibreOffice da kullanılabilir.
-  - **Windows / Linux:** **LibreOffice** (ücretsiz): https://www.libreoffice.org/download/. Linux'ta paket yöneticisinden de kurabilirsiniz (örneğin `sudo apt install libreoffice-impress`).
+  - **Windows:** masaüstü **PowerPoint** (Microsoft 365 / Office). Slaytlar orijinal görünümleriyle dışa aktarılır. PowerPoint yoksa LibreOffice da kullanılabilir.
+  - **Linux:** **LibreOffice** (ücretsiz): https://www.libreoffice.org/download/. Paket yöneticisinden de kurabilirsiniz (örneğin `sudo apt install libreoffice-impress`).
+  - **Hiçbiri yoksa:** sunumun PDF'i `.pptx` ile birlikte yüklenebilir (aşağıda "PDF yükleme").
 - Bir **ElevenLabs API anahtarı**. Anahtarı ElevenLabs'te Profile > API Keys bölümünden alabilirsiniz. Anahtarın *Text to Speech* ve *Voices (read)* izinleri olmalı.
 
 | İşletim sistemi | Slayt dışa aktarımı | Başlatma |
 |---|---|---|
 | macOS | Keynote, yoksa LibreOffice | `./run.sh` veya `run.command` (çift tıklayın) |
-| Windows | LibreOffice | `run.bat` (çift tıklayın) |
+| Windows | PowerPoint, yoksa LibreOffice | `run.bat` (çift tıklayın) |
 | Linux | LibreOffice | `./run.sh` |
 
 LibreOffice slaytları kendi motoruyla çizer. Yazı tipleri ve bazı efektler PowerPoint'tekinden biraz farklı görünebilir. Sunumdaki yazı tipleri bilgisayarınızda yüklü değilse benzerleriyle değiştirilir.
@@ -34,7 +36,7 @@ cd slide-to-video
 
 macOS'ta Keynote kullanılıyorsa ilk videoda macOS, uygulamanın Keynote'u kontrol etmesi için izin isteyecek. **İzin Ver**'e tıklayın. İzni kaçırırsanız Sistem Ayarları > Gizlilik ve Güvenlik > Otomasyon bölümünden açabilirsiniz.
 
-Keynote yüklü bir Mac'te LibreOffice'i zorlamak için: `SLIDE2VIDEO_RENDERER=libreoffice ./run.sh`. LibreOffice standart bir yerde değilse `soffice` komutunun PATH'te olduğundan emin olun.
+Belirli bir aracı zorlamak için `SLIDE2VIDEO_RENDERER=keynote|powerpoint|libreoffice` kullanın, örneğin Keynote yüklü bir Mac'te `SLIDE2VIDEO_RENDERER=libreoffice ./run.sh`. LibreOffice standart bir yerde değilse `soffice` komutunun PATH'te olduğundan emin olun.
 
 ## Kullanım
 1. **Slaytlar:** `.pptx` dosyasını yükleyin. Konuşmacı notları seslendirme metni olur. Gizli slaytlar atlanır. Notu olmayan slaytlar seslendirme olmadan 3 saniye gösterilir. Notlara `[calmly]`, `[short pause]` gibi ses etiketleri yazabilirsiniz.
@@ -62,16 +64,24 @@ Etiketli metin yeni bir metin sayıldığı için ilk seferde yeniden seslendiri
 Uygulamanın ürettiği her şey `data/` klasöründedir. Yer açmak için bu klasörü silebilirsiniz. Paketlenmiş uygulamada (aşağıya bakın) bu klasör kullanıcı klasöründedir; `SLIDE2VIDEO_DATA` ortam değişkeniyle her iki durumda da başka bir yer seçilebilir.
 
 ## Nasıl çalışır
-- Keynote (yoksa LibreOffice, `soffice --headless --convert-to pdf`) sunumu PDF olarak dışa aktarır, PyMuPDF her sayfayı seçilen çözünürlükte görüntüye çevirir.
+- Keynote (macOS, AppleScript), PowerPoint (Windows, PowerShell üzerinden COM: `Presentations.Open` salt okunur ve penceresiz, ardından `SaveAs` ile PDF) ya da LibreOffice (`soffice --headless --convert-to pdf`) sunumu PDF olarak dışa aktarır. PyMuPDF her sayfayı seçilen çözünürlükte görüntüye çevirir. PowerPoint zaten açıksa aynı örnek kullanılır ve açık bırakılır; uygulamanın başlattığı örnek iş bitince kapatılır.
+- PDF'in sayfa sayısı tüm slayt sayısına eşitse gizli slaytların sayfaları atlanır; görünür slayt sayısına eşitse sayfalar sırayla eşlenir.
 - İsteğe bağlı olarak notlara ifade etiketleri eklenir (yapay zekâ veya kurallarla).
 - Her slayt için tek bir ElevenLabs isteği yapılır. Model yalnızca Text-to-Dialogue ile sunuluyorsa uygulama otomatik olarak ona geçer.
 - Ses seviyesi -16 LUFS'a normalize edilir. Her slaytın başına 200 ms (yumuşak geçişte 450 ms), sonuna en az 600 ms sessizlik eklenir ve klip uzunluğu kare sayısıyla birebir eşlenir.
 - Klipler birleştirilir. Her slayt için bir bölüm (chapter) içeren tek bir MP4 oluşur ve dosyanın tamamı bir kez çözülerek kontrol edilir.
 
+## PDF yükleme
+Slaytları dışa aktaracak bir araç yoksa (ya da sonuç beğenilmezse) kullanıcı sunumun PDF'ini `.pptx` ile birlikte yükleyebilir. Notlar her zaman `.pptx`'ten okunur, görüntüler PDF'ten alınır.
+
+- `POST /api/upload` isteğe bağlı bir `pdf` alanı kabul eder. Sunum yüklendikten sonra `POST /api/jobs/<id>/pdf` PDF ekler, `DELETE /api/jobs/<id>/pdf` kaldırır.
+- PDF iş klasörüne `uploaded.pdf` olarak kaydedilir. Sayfa sayısı tüm slayt sayısı veya görünür slayt sayısıyla eşleşmezse reddedilir. PDF eklenince ya da kaldırılınca önceki `slides.pdf` ve `pages-*` görüntüleri silinir.
+- `/api/config` içindeki `renderer` alanı bu bilgisayarda bulunan aracı (`Keynote`, `PowerPoint`, `LibreOffice` veya `null`) bildirir. `null` ise arayüz PDF ister ve PDF eklenene kadar başlatma düğmesi kapalı kalır.
+
 Çevrimdışı test için `SLIDE2VIDEO_FAKE_TTS=1 ./run.sh` komutu ElevenLabs yerine macOS'un `say` sesini kullanır (yalnızca macOS).
 
 ## Paketlenmiş uygulama (Python gerektirmez)
-Teknik olmayan kullanıcılar için Python, bağımlılıklar, `static/` ve ffmpeg (imageio-ffmpeg'in ikili dosyası) PyInstaller ile tek klasörlük bir pakete konur. Slaytları görüntüye çevirmek için Keynote veya LibreOffice yine bilgisayarda yüklü olmalıdır; paket bunları içermez.
+Teknik olmayan kullanıcılar için Python, bağımlılıklar, `static/` ve ffmpeg (imageio-ffmpeg'in ikili dosyası) PyInstaller ile tek klasörlük bir pakete konur. Slaytları görüntüye çevirmek için Keynote, PowerPoint veya LibreOffice bilgisayarda yüklü olmalıdır (paket bunları içermez); hiçbiri yoksa PDF yüklenebilir.
 
 | Platform | Paket | İçerik |
 |---|---|---|
@@ -109,5 +119,3 @@ git push origin v0.1.0
 ```
 İş akışı Actions sekmesinden elle de çalıştırılabilir (*Run workflow*); bu durumda Release oluşturulmaz, ZIP'ler çalıştırmanın *Artifacts* bölümünden indirilir.
 
-## Planlanan
-- Windows'ta LibreOffice yerine PowerPoint ile slayt dışa aktarma ve `.pptx` ile birlikte PDF yükleme (görüntüler PDF'ten, notlar `.pptx`'ten).

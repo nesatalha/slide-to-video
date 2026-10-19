@@ -10,15 +10,7 @@ Program sizin bilgisayarınızda çalışır. Sunumunuz yalnızca seslendirme i�
 
 ## Windows'a kurulum
 
-<!-- LibreOffice adımı: başlangıç (PowerPoint ile dışa aktarma geldiğinde bu blok değiştirilebilir) -->
-**Önce LibreOffice'i indirip kurun.** Program, slaytları görüntüye çevirmek için ücretsiz LibreOffice programını kullanır. Bunu yalnızca bir kez yapmanız gerekir.
-
-- **https://www.libreoffice.org/download/** adresine gidin ve **İndir** (Download) düğmesine basın.
-- İnen dosyaya çift tıklayın. Kurulumda hiçbir ayarı değiştirmeden **İleri**'ye, en sonda **Kur**'a basın. Kurulum bitince **Son**'a basın.
-- LibreOffice'i açmanız gerekmez; Slayttan Videoya onu kendisi kullanır.
-<!-- LibreOffice adımı: bitiş -->
-
-Sonra Slayttan Videoya'yı kurun:
+Slaytları görüntüye çevirmek için bilgisayarınızda **PowerPoint** (Microsoft 365 veya Office) yüklü olmalıdır. Ayrıca bir şey kurmanız gerekmez. PowerPoint'i bu bilgisayarda hiç açmadıysanız bir kez açıp kapatın.
 
 1. Bu sayfanın sağ tarafındaki **Releases** bölümüne tıklayın ve en üstteki sürümü açın.
 2. **SlayttanVideoya-windows-x64.zip** dosyasına tıklayıp indirin.
@@ -49,7 +41,7 @@ Programı sonraki seferlerde açmak için yine **SlayttanVideoya.exe**'ye çift 
 <!-- Ekran görüntüsü: Gizlilik ve Güvenlik sayfasında "Yine de Aç" düğmesi -->
 <!-- Ekran görüntüsü: "Slayttan Videoya çalışıyor" penceresi -->
 
-Mac'te slaytlar **Keynote** ile görüntüye çevrilir. Keynote yüklü değilse App Store'dan ücretsiz indirebilirsiniz (Keynote yerine LibreOffice da kurulabilir). İlk videoda Mac, programın Keynote'u kullanması için izin ister; **İzin Ver**'e tıklayın.
+Mac'te slaytlar **Keynote** ile görüntüye çevrilir. Keynote yüklü değilse App Store'dan ücretsiz indirebilirsiniz ya da sunumun PDF'ini yükleyebilirsiniz (bkz. "PowerPoint veya Keynote yoksa"). İlk videoda Mac, programın Keynote'u kullanması için izin ister; **İzin Ver**'e tıklayın.
 
 ---
 
@@ -76,6 +68,9 @@ Seslendirmeyi ElevenLabs adlı bir hizmet yapar. Programın bu hizmeti sizin ad�
 6. Video hazır olunca tarayıcıda izleyebilir ve **MP4 indir** ile bilgisayarınıza kaydedebilirsiniz.
 
 <!-- Ekran görüntüsü: programın ana ekranı -->
+
+### PowerPoint veya Keynote yoksa
+Sunumu PowerPoint'i olan bir bilgisayarda **Dosya > Farklı Kaydet** ile **PDF** olarak kaydedin. Programa **.pptx** dosyasını ve bu **PDF**'i birlikte sürükleyip bırakın (ya da önce .pptx'i yükleyip sonra **PDF ekle**'ye basın). Slayt görüntüleri PDF'ten, notlar .pptx'ten alınır. PDF'in aynı sunumdan kaydedilmiş olması gerekir.
 
 Aynı sunumu farklı hızda veya kalitede yeniden oluşturmak ek kredi harcamaz; daha önce okunan notlar tekrar kullanılır.
 
@@ -106,8 +101,11 @@ ElevenLabs hesabınızdaki kredi bitmiştir. ElevenLabs'te **Subscription** sayf
 **"Anahtar geçersiz" veya "izin yok" hatası aldım.**
 Anahtarı eksiksiz kopyaladığınızdan emin olun. Anahtarın **Text to Speech** ve **Voices** izinleri açık olmalıdır (bkz. "ElevenLabs anahtarı nasıl alınır").
 
-**Slaytlar dışa aktarılamadı (görüntüye çevrilemedi).**
-LibreOffice kurulu mu? Windows'ta bu sayfanın başındaki "Önce LibreOffice'i indirip kurun" adımını uygulayın. Mac'te Keynote veya LibreOffice kurulu olmalıdır. Kurduktan sonra Slayttan Videoya'yı kapatıp yeniden açın ve videoyu tekrar oluşturun.
+**Slaytlar dışa aktarılamadı (görüntüye çevrilemedi) ya da "PDF gerekli" yazıyor.**
+Windows'ta PowerPoint, Mac'te Keynote yüklü olmalıdır. PowerPoint açıksa ekranda bekleyen bir uyarı veya oturum açma penceresi olup olmadığına bakın, kapatıp tekrar deneyin. Olmuyorsa sunumu PDF olarak kaydedip .pptx ile birlikte yükleyin (bkz. "PowerPoint veya Keynote yoksa").
+
+**"PDF'te ... sayfa var" hatası aldım.**
+PDF başka bir sunumdan ya da sunumun eski bir halinden kaydedilmiş. Sunumu PowerPoint'te yeniden PDF olarak kaydedip tekrar yükleyin.
 
 **Video yarıda kaldı.**
 Program kapatıldıysa yeniden açın ve aynı sunumda **Videoyu oluştur**'a tekrar basın. Tamamlanan seslendirmeler yeniden kullanılır.
