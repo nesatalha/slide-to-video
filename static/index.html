@@ -84,12 +84,14 @@
   <section>
     <h2><span class="n">1</span>Slaytlar</h2>
     <div class="drop" id="drop" tabindex="0" role="button">
-      <strong id="dropTitle">.pptx dosyasını buraya bırakın veya seçmek için tıklayın</strong>
+      <strong id="dropTitle">.pptx dosyasını (varsa PDF'iyle birlikte) buraya bırakın veya seçmek için tıklayın</strong>
       <span class="hint" id="dropHint">Konuşmacı notları seslendirme metni olur. Gizli slaytlar atlanır. Notlardaki [calmly] gibi ses etiketleri olduğu gibi kullanılır.</span>
     </div>
-    <input type="file" id="file" accept=".pptx" class="hidden">
+    <input type="file" id="file" accept=".pptx,.pdf" multiple class="hidden">
+    <input type="file" id="pdfFile" accept=".pdf" class="hidden">
     <div id="deckInfo" class="hidden">
       <div class="stats" id="stats"></div>
+      <div id="pdfInfo"></div>
       <div id="deckWarn"></div>
       <div id="creditWarn"></div>
       <details><summary>Slaytları ve notları göster</summary><div class="slides" id="slideList"></div></details>
@@ -265,8 +267,31 @@ function renderDeck() {
   $('stats').dataset.chars = chars;
   const silent = visible.filter(s => !s.notes).map(s => s.slide);
   $('deckWarn').innerHTML = silent.length ? `<div class="msg warn">${silent.length > 1 ? `${silent.join(', ')} numaralı slaytlarda` : `${silent[0]} numaralı slaytta`} konuşmacı notu yok. Seslendirme olmadan 3 saniye gösterilecek.</div>` : '';
+  renderPdf();
   $('slideList').innerHTML = job.slides.map(s => `<div class="slide ${s.hidden ? 'skip' : ''}"><div class="hint">${s.slide}</div><div><div class="t">${esc(s.title)}${s.hidden ? '<span class="tag">gizli</span>' : ''}${!s.notes && !s.hidden ? '<span class="tag">not yok</span>' : ''}</div><div class="notes">${esc(s.notes || '—')}</div></div></div>`).join('');
   updateEstimate();
+}
+
+function renderPdf() {
+  const where = job.pdf
+    ? `<span class="hint">Slayt görüntüleri: <b>${esc(job.pdf)}</b></span><button id="removePdf" type="button">PDF'i kaldır</button>`
+    : `<span class="hint">Slayt görüntüleri: ${cfg.renderer ? `${esc(cfg.renderer)} ile oluşturulacak` : 'PDF gerekli'}</span><button id="addPdf" type="button">PDF ekle</button>`;
+  $('pdfInfo').innerHTML = `<div class="row" style="margin-top:8px">${where}</div>`
+    + (!job.pdf && !cfg.renderer ? `<div class="msg warn">Bu bilgisayarda slaytları görüntüye çevirecek PowerPoint, Keynote veya LibreOffice bulunamadı. Sunumu PowerPoint'te <b>Dosya &gt; Farklı Kaydet &gt; PDF</b> ile kaydedip <b>PDF ekle</b> ile yükleyin. Notlar yine .pptx dosyasından okunur.</div>` : '');
+  if (job.pdf) $('removePdf').onclick = removePdf; else $('addPdf').onclick = () => $('pdfFile').click();
+}
+
+async function addPdf(file) {
+  if (!file) return;
+  showError('');
+  const fd = new FormData(); fd.append('pdf', file);
+  try { job = await api(`/api/jobs/${job.id}/pdf`, {method: 'POST', body: fd}); renderDeck(); }
+  catch (e) { showError(e.message); }
+}
+
+async function removePdf() {
+  try { job = await api(`/api/jobs/${job.id}/pdf`, {method: 'DELETE'}); renderDeck(); }
+  catch (e) { showError(e.message); }
 }
 
 function updateEstimate() {
@@ -277,19 +302,25 @@ function updateEstimate() {
 
 function refreshGo() {
   const running = job && job.status === 'running';
-  $('go').disabled = !job || running || (!$('key').value.trim() && !cfg.fake_tts);
+  const needPdf = job && !job.pdf && !cfg.renderer;
+  $('go').disabled = !job || running || needPdf || (!$('key').value.trim() && !cfg.fake_tts);
   $('goHint').textContent = !job ? 'Başlamak için bir sunum yükleyin.' : running ? 'İşleniyor…'
+    : needPdf ? 'Slayt görüntüleri için sunumun PDF\'ini ekleyin.'
     : (!$('key').value.trim() && !cfg.fake_tts) ? 'API anahtarınızı girin.' : '';
 }
 
-async function upload(file) {
-  if (!file) return;
-  if (!file.name.toLowerCase().endsWith('.pptx')) { showError('Lütfen bir .pptx dosyası seçin.'); return; }
+async function upload(files) {
+  files = [...(files || [])];
+  const file = files.find(f => f.name.toLowerCase().endsWith('.pptx'));
+  const pdf = files.find(f => f.name.toLowerCase().endsWith('.pdf'));
+  if (!file && pdf && job) { addPdf(pdf); return; }
+  if (!file) { showError(pdf ? 'Önce .pptx dosyasını yükleyin; notlar oradan okunur. PDF\'i onunla birlikte ekleyebilirsiniz.' : 'Lütfen bir .pptx dosyası seçin.'); return; }
   showError(''); $('result').classList.add('hidden'); $('progress').classList.add('hidden');
   $('dropTitle').textContent = file.name + ' okunuyor…';
   const fd = new FormData(); fd.append('deck', file);
+  if (pdf) fd.append('pdf', pdf);
   try { job = await api('/api/upload', {method: 'POST', body: fd}); store.set('job', job.id); narr = null; $('tagInfo').innerHTML = ''; renderDeck(); renderNarr(); }
-  catch (e) { showError(e.message); $('dropTitle').textContent = '.pptx dosyasını buraya bırakın veya seçmek için tıklayın'; }
+  catch (e) { showError(e.message); $('dropTitle').textContent = '.pptx dosyasını (varsa PDF\'iyle birlikte) buraya bırakın veya seçmek için tıklayın'; }
 }
 
 function renderJob() {
@@ -374,10 +405,11 @@ async function start() {
 const drop = $('drop');
 drop.onclick = () => $('file').click();
 drop.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('file').click(); } };
-$('file').onchange = e => upload(e.target.files[0]);
+$('file').onchange = e => { upload(e.target.files); e.target.value = ''; };
+$('pdfFile').onchange = e => { addPdf(e.target.files[0]); e.target.value = ''; };
 ['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
 ['dragleave', 'drop'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove('over'); }));
-drop.addEventListener('drop', e => upload(e.dataTransfer.files[0]));
+drop.addEventListener('drop', e => upload(e.dataTransfer.files));
 
 $('showKey').onclick = () => { const k = $('key'); k.type = k.type === 'password' ? 'text' : 'password'; $('showKey').textContent = k.type === 'password' ? 'Göster' : 'Gizle'; };
 $('key').addEventListener('input', () => { if ($('remember').checked) store.set('key', $('key').value.trim()); refreshGo(); });

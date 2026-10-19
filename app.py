@@ -53,6 +53,30 @@ def index():
     return send_from_directory(ROOT / 'static', 'index.html')
 
 
+def clear_pages(d):
+    """Drop exported/rendered slide images so the next run uses the current PDF source."""
+    (d / 'slides.pdf').unlink(missing_ok=True)
+    for pages in d.glob('pages-*'):
+        shutil.rmtree(pages, ignore_errors=True)
+
+
+def attach_pdf(job, f):
+    """Store an uploaded PDF as the job's slide images (instead of exporting the .pptx)."""
+    if not f.filename.lower().endswith('.pdf'):
+        raise pipeline.PipelineError('Lütfen bir .pdf dosyası seçin.')
+    d = JOBS / job['id']
+    tmp = d / 'uploaded.part.pdf'
+    f.save(tmp)
+    try:
+        pipeline.check_pdf(tmp, job['slides'])
+    except pipeline.PipelineError:
+        tmp.unlink(missing_ok=True)
+        raise
+    tmp.replace(d / 'uploaded.pdf')
+    clear_pages(d)
+    job['pdf'] = f.filename
+
+
 @app.post('/api/upload')
 def upload():
     f = request.files.get('deck')
@@ -69,9 +93,43 @@ def upload():
         shutil.rmtree(d, ignore_errors=True)
         return jsonify(error=f'Sunum okunamadı: {e}'), 400
     job = {'id': job_id, 'name': f.filename, 'status': 'ready', 'stage': '', 'progress': 0, 'log': [],
-           'slides': slides, 'result': None, 'error': None}
+           'slides': slides, 'result': None, 'error': None, 'pdf': None}
+    if request.files.get('pdf'):
+        try:
+            attach_pdf(job, request.files['pdf'])
+        except pipeline.PipelineError as e:
+            shutil.rmtree(d, ignore_errors=True)
+            return jsonify(error=str(e)), 400
     with lock:
         jobs[job_id] = job
+    save(job)
+    return jsonify(public(job))
+
+
+@app.post('/api/jobs/<job_id>/pdf')
+def add_pdf(job_id):
+    job = jobs.get(job_id) or abort(404)
+    if job['status'] == 'running':
+        return jsonify(error='Önce işlemin bitmesini bekleyin.'), 409
+    f = request.files.get('pdf')
+    if not f:
+        return jsonify(error='PDF dosyası gelmedi.'), 400
+    try:
+        attach_pdf(job, f)
+    except pipeline.PipelineError as e:
+        return jsonify(error=str(e)), 400
+    save(job)
+    return jsonify(public(job))
+
+
+@app.delete('/api/jobs/<job_id>/pdf')
+def remove_pdf(job_id):
+    job = jobs.get(job_id) or abort(404)
+    if job['status'] == 'running':
+        return jsonify(error='Önce işlemin bitmesini bekleyin.'), 409
+    (JOBS / job_id / 'uploaded.pdf').unlink(missing_ok=True)
+    clear_pages(JOBS / job_id)
+    job['pdf'] = None
     save(job)
     return jsonify(public(job))
 
@@ -197,10 +255,18 @@ def account():
         return jsonify(error=str(e)), 400
 
 
+def renderer_name():
+    try:
+        return pipeline.RENDERER_NAMES.get(pipeline.renderer(required=False))
+    except pipeline.PipelineError:
+        return None
+
+
 @app.get('/api/config')
 def config():
     return jsonify(default_voice=pipeline.DEFAULT_VOICE, default_model=pipeline.DEFAULT_MODEL,
                    resolutions=list(pipeline.RESOLUTIONS), fake_tts=pipeline.FAKE_TTS,
+                   renderer=renderer_name(),
                    free_mb=shutil.disk_usage(DATA).free // 2**20)
 
 

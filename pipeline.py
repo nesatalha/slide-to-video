@@ -38,7 +38,7 @@ RESOLUTIONS = {'480p': (854, 480), '720p': (1280, 720), '1080p': (1920, 1080)}
 DEFAULT_VOICE = '7VqWGAWwo2HMrylfKrcm'  # Fatih Yıldırım - Deep, Clear and Rich
 DEFAULT_MODEL = 'eleven_v4'
 FAKE_TTS = os.environ.get('SLIDE2VIDEO_FAKE_TTS') == '1'  # offline testing with macOS `say`
-RENDERER = os.environ.get('SLIDE2VIDEO_RENDERER', '').strip().lower()  # 'keynote', 'libreoffice' or auto
+RENDERER = os.environ.get('SLIDE2VIDEO_RENDERER', '').strip().lower()  # 'keynote', 'powerpoint', 'libreoffice' or auto
 
 
 class PipelineError(Exception):
@@ -136,6 +136,21 @@ on run argv
 end run
 '''
 _keynote = threading.Lock()  # one Keynote export at a time
+_powerpoint = threading.Lock()  # one PowerPoint export at a time
+
+# Windows: PowerPoint saves the deck as PDF through COM (no extra Python packages needed).
+# An already open PowerPoint is reused and left running; one started here is closed again.
+POWERPOINT_SCRIPT = r'''
+$ErrorActionPreference = 'Stop'
+$wasRunning = [bool](Get-Process POWERPNT -ErrorAction SilentlyContinue)
+$app = New-Object -ComObject PowerPoint.Application
+try {
+  $pres = $app.Presentations.Open($env:SLIDE2VIDEO_SRC, -1, 0, 0)
+  try { $pres.SaveAs($env:SLIDE2VIDEO_DST, 32) } finally { $pres.Close() }
+} finally {
+  if (-not $wasRunning -and $app.Presentations.Count -eq 0) { $app.Quit() }
+}
+'''
 
 
 def find_keynote():
@@ -164,30 +179,83 @@ def find_soffice():
     return None
 
 
-def renderer():
-    """Keynote when available (truest to the original), otherwise LibreOffice."""
-    if RENDERER not in ('', 'keynote', 'libreoffice'):
-        raise PipelineError(f"SLIDE2VIDEO_RENDERER yalnızca 'keynote' veya 'libreoffice' olabilir, '{RENDERER}' verildi.")
-    if RENDERER != 'libreoffice' and find_keynote():
+def find_powerpoint():
+    """True when desktop PowerPoint is installed on Windows (its COM class is registered)."""
+    if platform.system() != 'Windows':
+        return False
+    import winreg
+    try:
+        winreg.CloseKey(winreg.OpenKey(winreg.HKEY_CLASSES_ROOT, r'PowerPoint.Application\CLSID'))
+        return True
+    except OSError:
+        return False
+
+
+NO_RENDERER = ('Bu bilgisayarda slaytları görüntüye çevirecek bir program bulunamadı (Windows\'ta PowerPoint, '
+               'Mac\'te Keynote veya LibreOffice). Sunumu PowerPoint\'te Dosya > Farklı Kaydet > PDF ile kaydedip '
+               'PDF dosyasını .pptx ile birlikte yükleyin.')
+
+
+def renderer(required=True):
+    """Keynote on macOS, PowerPoint on Windows (truest to the original), otherwise LibreOffice."""
+    if RENDERER not in ('', 'keynote', 'powerpoint', 'libreoffice'):
+        raise PipelineError("SLIDE2VIDEO_RENDERER yalnızca 'keynote', 'powerpoint' veya 'libreoffice' olabilir, "
+                            f"'{RENDERER}' verildi.")
+    if RENDERER in ('', 'keynote') and find_keynote():
         return 'keynote'
+    if RENDERER in ('', 'powerpoint') and find_powerpoint():
+        return 'powerpoint'
     if RENDERER == 'keynote':
         raise PipelineError('Keynote bulunamadı. Keynote yalnızca macOS\'ta çalışır; App Store\'dan ücretsiz yükleyebilirsiniz.')
+    if RENDERER == 'powerpoint':
+        raise PipelineError('PowerPoint bulunamadı. PowerPoint ile dışa aktarma yalnızca Windows\'ta çalışır.')
     if find_soffice():
         return 'libreoffice'
-    raise PipelineError('Slaytları dışa aktarmak için Keynote (yalnızca macOS) veya LibreOffice gerekli. '
-                        'LibreOffice\'i https://www.libreoffice.org/download/ adresinden ücretsiz yükleyip tekrar deneyin.')
+    if required:
+        raise PipelineError(NO_RENDERER)
+    return None
 
 
-RENDERER_NAMES = {'keynote': 'Keynote', 'libreoffice': 'LibreOffice'}
+RENDERER_NAMES = {'keynote': 'Keynote', 'powerpoint': 'PowerPoint', 'libreoffice': 'LibreOffice'}
 
 
 def export_pdf(pptx_path, pdf_path):
     if pdf_path.exists():
         return
-    if renderer() == 'libreoffice':
-        export_pdf_libreoffice(pptx_path, pdf_path)
-    else:
-        export_pdf_keynote(pptx_path, pdf_path)
+    {'keynote': export_pdf_keynote, 'powerpoint': export_pdf_powerpoint,
+     'libreoffice': export_pdf_libreoffice}[renderer()](pptx_path, pdf_path)
+
+
+def export_pdf_powerpoint(pptx_path, pdf_path):
+    """Desktop PowerPoint via COM; renders with the deck's real fonts and layout."""
+    tmp = pdf_path.with_suffix('.part.pdf')
+    env = dict(os.environ, SLIDE2VIDEO_SRC=str(Path(pptx_path).resolve()), SLIDE2VIDEO_DST=str(tmp.resolve()))
+    try:
+        with _powerpoint:
+            r = subprocess.run(['powershell', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+                                '-Command', '-'], input=POWERPOINT_SCRIPT, env=env, text=True,
+                               capture_output=True, timeout=900)
+    except subprocess.TimeoutExpired:
+        raise PipelineError('PowerPoint dışa aktarımı 15 dakika içinde bitmedi. PowerPoint\'te açık bir uyarı '
+                            'penceresi olabilir; kapatıp tekrar deneyin.')
+    if r.returncode or not tmp.exists():
+        tmp.unlink(missing_ok=True)
+        raise PipelineError('PowerPoint dışa aktarımı başarısız oldu: ' + (r.stderr or r.stdout).strip()[-800:]
+                            + ' Sunumu PowerPoint\'te PDF olarak kaydedip .pptx ile birlikte yükleyebilirsiniz.')
+    tmp.replace(pdf_path)
+
+
+def check_pdf(pdf_path, slides):
+    """Raise unless an uploaded PDF has one page per slide (all slides or only the visible ones)."""
+    try:
+        count = pymupdf.open(str(pdf_path)).page_count
+    except Exception:
+        raise PipelineError('PDF dosyası açılamadı. Sunumu PowerPoint\'te Dosya > Farklı Kaydet > PDF ile yeniden kaydedin.')
+    visible = sum(not s['hidden'] for s in slides)
+    if count not in (len(slides), visible):
+        raise PipelineError(f'PDF\'te {count} sayfa var, sunumda ise {len(slides)} slayt ({visible} görünür) var. '
+                            'PDF\'in bu sunumdan kaydedildiğinden emin olun.')
+    return count
 
 
 def export_pdf_libreoffice(pptx_path, pdf_path):
@@ -450,10 +518,15 @@ def run(job_dir, pptx_path, opts, cache_dir, report):
     slides = [s for s in read_deck(pptx_path) if not s['hidden']]
     all_count = len(read_deck(pptx_path))
 
-    tool = RENDERER_NAMES[renderer()]
-    report(f'Slaytlar {tool} ile dışa aktarılıyor', 0.02, f'{len(slides)} görünür slayt')
     pdf = job_dir / 'slides.pdf'
-    export_pdf(pptx_path, pdf)
+    if (job_dir / 'uploaded.pdf').exists():  # the user uploaded the PDF next to the .pptx
+        tool = 'Yüklenen PDF'
+        shutil.copyfile(job_dir / 'uploaded.pdf', pdf)
+        report('Slaytlar yüklenen PDF\'ten alınıyor', 0.02, f'{len(slides)} görünür slayt')
+    else:
+        tool = RENDERER_NAMES[renderer()]
+        report(f'Slaytlar {tool} ile dışa aktarılıyor', 0.02, f'{len(slides)} görünür slayt')
+        export_pdf(pptx_path, pdf)
     pages = render_pages(pdf, job_dir / f'pages-{opts["resolution"]}', size)
     if len(pages) == all_count:
         images = {s['slide']: pages[s['slide'] - 1] for s in slides}

@@ -9,10 +9,9 @@ if [ "$(uname)" = "Darwin" ] && { [ -d "/Applications/Keynote.app" ] || [ -d "$H
 fi
 if [ $has_keynote = 0 ] && ! command -v soffice >/dev/null && ! command -v libreoffice >/dev/null \
    && [ ! -x "/Applications/LibreOffice.app/Contents/MacOS/soffice" ] && ! ls /opt/libreoffice*/program/soffice >/dev/null 2>&1; then
-  echo "Slaytları dışa aktarmak için Keynote (yalnızca macOS) veya LibreOffice gerekli."
+  echo "Uyarı: Keynote veya LibreOffice bulunamadı. Sunumun PDF'ini .pptx ile birlikte yükleyebilirsiniz."
   echo "  macOS: Keynote'u App Store'dan ücretsiz yükleyin: https://apps.apple.com/app/keynote/id409183694"
   echo "  Diğer: LibreOffice'i yükleyin: https://www.libreoffice.org/download/"
-  exit 1
 fi
 if ! python3 -c 'import sys; sys.exit(sys.version_info < (3, 10))' 2>/dev/null; then
   echo "Python 3.10 veya üstü gerekli: https://www.python.org/downloads/"; exit 1

@@ -9,10 +9,9 @@ where soffice >nul 2>&1
 if not errorlevel 1 set "SOFFICE=soffice"
 if not defined SOFFICE if exist "%ProgramFiles%\LibreOffice\program\soffice.exe" set "SOFFICE=%ProgramFiles%\LibreOffice\program\soffice.exe"
 if not defined SOFFICE if exist "%ProgramFiles(x86)%\LibreOffice\program\soffice.exe" set "SOFFICE=%ProgramFiles(x86)%\LibreOffice\program\soffice.exe"
+if not defined SOFFICE reg query "HKCR\PowerPoint.Application" >nul 2>&1 && set "SOFFICE=powerpoint"
 if not defined SOFFICE (
-  echo Slaytları dışa aktarmak için LibreOffice gerekli: https://www.libreoffice.org/download/
-  pause
-  exit /b 1
+  echo Uyarı: PowerPoint veya LibreOffice bulunamadı. Sunumun PDF'ini .pptx ile birlikte yükleyebilirsiniz.
 )
 
 set "PY="
