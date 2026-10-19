@@ -2,7 +2,7 @@
 
 Same recipe as the original Codex KVKK build:
   speaker notes -> ElevenLabs TTS (one clip per slide)
-  Keynote PDF export -> one still image per slide
+  Keynote (or LibreOffice) PDF export -> one still image per slide
   per slide: loudnorm -16 LUFS, 200 ms lead-in, >=600 ms tail, frame-exact still clip
   concat -> H.264/AAC MP4 with one chapter per slide, faststart
 """
@@ -11,8 +11,10 @@ import hashlib
 import json
 import math
 import os
+import platform
 import shutil
 import subprocess
+import tempfile
 import threading
 import time
 import wave
@@ -34,6 +36,7 @@ RESOLUTIONS = {'480p': (854, 480), '720p': (1280, 720), '1080p': (1920, 1080)}
 DEFAULT_VOICE = '7VqWGAWwo2HMrylfKrcm'  # Fatih Yıldırım - Deep, Clear and Rich
 DEFAULT_MODEL = 'eleven_v4'
 FAKE_TTS = os.environ.get('SLIDE2VIDEO_FAKE_TTS') == '1'  # offline testing with macOS `say`
+RENDERER = os.environ.get('SLIDE2VIDEO_RENDERER', '').strip().lower()  # 'keynote', 'libreoffice' or auto
 
 
 class PipelineError(Exception):
@@ -133,10 +136,79 @@ end run
 _keynote = threading.Lock()  # one Keynote export at a time
 
 
+def find_keynote():
+    if platform.system() != 'Darwin':
+        return None
+    for app in (Path('/Applications/Keynote.app'), Path.home() / 'Applications/Keynote.app'):
+        if app.exists():
+            return app
+    return None
+
+
+def find_soffice():
+    for name in ('soffice', 'libreoffice'):
+        found = shutil.which(name)
+        if found:
+            return found
+    candidates = [Path('/Applications/LibreOffice.app/Contents/MacOS/soffice'),
+                  Path('/usr/bin/soffice'), Path('/usr/local/bin/soffice'), Path('/snap/bin/libreoffice')]
+    candidates += sorted(Path('/opt').glob('libreoffice*/program/soffice'), reverse=True)
+    for env in ('ProgramFiles', 'ProgramFiles(x86)', 'ProgramW6432'):
+        if os.environ.get(env):
+            candidates.append(Path(os.environ[env]) / 'LibreOffice/program/soffice.exe')
+    for c in candidates:
+        if c.exists():
+            return str(c)
+    return None
+
+
+def renderer():
+    """Keynote when available (truest to the original), otherwise LibreOffice."""
+    if RENDERER not in ('', 'keynote', 'libreoffice'):
+        raise PipelineError(f"SLIDE2VIDEO_RENDERER yalnızca 'keynote' veya 'libreoffice' olabilir, '{RENDERER}' verildi.")
+    if RENDERER != 'libreoffice' and find_keynote():
+        return 'keynote'
+    if RENDERER == 'keynote':
+        raise PipelineError('Keynote bulunamadı. Keynote yalnızca macOS\'ta çalışır; App Store\'dan ücretsiz yükleyebilirsiniz.')
+    if find_soffice():
+        return 'libreoffice'
+    raise PipelineError('Slaytları dışa aktarmak için Keynote (yalnızca macOS) veya LibreOffice gerekli. '
+                        'LibreOffice\'i https://www.libreoffice.org/download/ adresinden ücretsiz yükleyip tekrar deneyin.')
+
+
+RENDERER_NAMES = {'keynote': 'Keynote', 'libreoffice': 'LibreOffice'}
+
+
 def export_pdf(pptx_path, pdf_path):
-    """Keynote renders the deck with the real fonts/layout, like the 'Orijinal Slaytlar' build."""
     if pdf_path.exists():
         return
+    if renderer() == 'libreoffice':
+        export_pdf_libreoffice(pptx_path, pdf_path)
+    else:
+        export_pdf_keynote(pptx_path, pdf_path)
+
+
+def export_pdf_libreoffice(pptx_path, pdf_path):
+    """Headless LibreOffice; hidden slides are left out of the PDF (visible-only page count)."""
+    soffice = find_soffice()
+    with tempfile.TemporaryDirectory(dir=pdf_path.parent) as tmp:
+        tmp = Path(tmp)
+        # A private profile avoids clashing with an open LibreOffice window or a parallel export.
+        profile = (tmp / 'profile').resolve().as_uri()
+        try:
+            r = subprocess.run([soffice, f'-env:UserInstallation={profile}', '--headless', '--norestore',
+                                '--convert-to', 'pdf', '--outdir', str(tmp), str(pptx_path)],
+                               capture_output=True, text=True, timeout=900)
+        except subprocess.TimeoutExpired:
+            raise PipelineError('LibreOffice dışa aktarımı 15 dakika içinde bitmedi.')
+        out = tmp / (Path(pptx_path).stem + '.pdf')
+        if r.returncode or not out.exists():
+            raise PipelineError('LibreOffice dışa aktarımı başarısız oldu: ' + (r.stderr or r.stdout).strip()[-800:])
+        shutil.move(str(out), str(pdf_path))
+
+
+def export_pdf_keynote(pptx_path, pdf_path):
+    """Keynote renders the deck with the real fonts/layout, like the 'Orijinal Slaytlar' build."""
     tmp = pdf_path.with_suffix('.part.pdf')
     # A uniquely named hard link lets the script find this exact document in Keynote.
     name = f'slide2video-{os.urandom(4).hex()}'
@@ -351,7 +423,8 @@ def run(job_dir, pptx_path, opts, cache_dir, report):
     slides = [s for s in read_deck(pptx_path) if not s['hidden']]
     all_count = len(read_deck(pptx_path))
 
-    report('Slaytlar Keynote ile dışa aktarılıyor', 0.02, f'{len(slides)} görünür slayt')
+    tool = RENDERER_NAMES[renderer()]
+    report(f'Slaytlar {tool} ile dışa aktarılıyor', 0.02, f'{len(slides)} görünür slayt')
     pdf = job_dir / 'slides.pdf'
     export_pdf(pptx_path, pdf)
     pages = render_pages(pdf, job_dir / f'pages-{opts["resolution"]}', size)
@@ -360,7 +433,8 @@ def run(job_dir, pptx_path, opts, cache_dir, report):
     elif len(pages) == len(slides):
         images = {s['slide']: p for s, p in zip(slides, pages)}
     else:
-        raise PipelineError(f'Keynote {all_count} slayt için {len(pages)} sayfa üretti.')
+        raise PipelineError(f'{tool} {all_count} slayt için {len(pages)} sayfa üretti '
+                            f'({len(slides)} görünür slayt bekleniyordu).')
 
     voiced = [s for s in slides if s['notes']]
     audio, done = {}, 0
