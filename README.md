@@ -1,67 +1,113 @@
 # Slayttan Videoya
 
-PowerPoint sunumunu seslendirilmiş bir MP4 videoya çeviren, bilgisayarınızda çalışan bir web uygulaması. Her slaytın konuşmacı notları ElevenLabs ile seslendirilir.
+> Teknik ayrıntılar (kaynak koddan çalıştırma, paketleme, iç işleyiş) için: [TEKNIK.md](TEKNIK.md)
 
-## Gereksinimler
-- **Python 3.10 veya üstü**: https://www.python.org/downloads/ (Windows'ta kurulumda "Add python.exe to PATH" seçeneğini işaretleyin.)
-- Slaytları görüntüye çevirmek için şunlardan biri:
-  - **macOS:** **Keynote** (App Store'da ücretsiz). Slaytlar orijinal görünümleriyle dışa aktarılır. Keynote yoksa LibreOffice da kullanılabilir.
-  - **Windows / Linux:** **LibreOffice** (ücretsiz): https://www.libreoffice.org/download/. Linux'ta paket yöneticisinden de kurabilirsiniz (örneğin `sudo apt install libreoffice-impress`).
-- Bir **ElevenLabs API anahtarı**. Anahtarı ElevenLabs'te Profile > API Keys bölümünden alabilirsiniz. Anahtarın *Text to Speech* ve *Voices (read)* izinleri olmalı.
+Slayttan Videoya, bir PowerPoint sunumunu sesli anlatımlı bir videoya çevirir. Her slaytın altına yazdığınız konuşmacı notları bir yapay zekâ sesiyle okunur ve slaytlar bu anlatımla birlikte bir video dosyasına (MP4) dönüşür.
 
-| İşletim sistemi | Slayt dışa aktarımı | Başlatma |
-|---|---|---|
-| macOS | Keynote, yoksa LibreOffice | `./run.sh` |
-| Windows | LibreOffice | `run.bat` (çift tıklayın) |
-| Linux | LibreOffice | `./run.sh` |
+Program sizin bilgisayarınızda çalışır. Sunumunuz yalnızca seslendirme için gereken notlar dışında hiçbir yere gönderilmez.
 
-LibreOffice slaytları kendi motoruyla çizer. Yazı tipleri ve bazı efektler PowerPoint'tekinden biraz farklı görünebilir. Sunumdaki yazı tipleri bilgisayarınızda yüklü değilse benzerleriyle değiştirilir.
+---
 
-## Çalıştırma
-**macOS / Linux:**
-```bash
-git clone <repo-adresi>
-cd slide-to-video
-./run.sh
-```
-**Windows:** depoyu klonlayın (veya ZIP olarak indirip açın) ve klasördeki `run.bat` dosyasına çift tıklayın.
+## Windows'a kurulum
 
-İlk çalıştırmada gerekli paketler kurulur ve tarayıcıda **http://127.0.0.1:8765** açılır. Uygulamaya yalnızca sizin bilgisayarınızdan erişilebilir.
+<!-- LibreOffice adımı: başlangıç (PowerPoint ile dışa aktarma geldiğinde bu blok değiştirilebilir) -->
+**Önce LibreOffice'i indirip kurun.** Program, slaytları görüntüye çevirmek için ücretsiz LibreOffice programını kullanır. Bunu yalnızca bir kez yapmanız gerekir.
 
-macOS'ta Keynote kullanılıyorsa ilk videoda macOS, uygulamanın Keynote'u kontrol etmesi için izin isteyecek. **İzin Ver**'e tıklayın. İzni kaçırırsanız Sistem Ayarları > Gizlilik ve Güvenlik > Otomasyon bölümünden açabilirsiniz.
+- **https://www.libreoffice.org/download/** adresine gidin ve **İndir** (Download) düğmesine basın.
+- İnen dosyaya çift tıklayın. Kurulumda hiçbir ayarı değiştirmeden **İleri**'ye, en sonda **Kur**'a basın. Kurulum bitince **Son**'a basın.
+- LibreOffice'i açmanız gerekmez; Slayttan Videoya onu kendisi kullanır.
+<!-- LibreOffice adımı: bitiş -->
 
-Keynote yüklü bir Mac'te LibreOffice'i zorlamak için: `SLIDE2VIDEO_RENDERER=libreoffice ./run.sh`. LibreOffice standart bir yerde değilse `soffice` komutunun PATH'te olduğundan emin olun.
+Sonra Slayttan Videoya'yı kurun:
 
-## Kullanım
-1. **Slaytlar:** `.pptx` dosyasını yükleyin. Konuşmacı notları seslendirme metni olur. Gizli slaytlar atlanır. Notu olmayan slaytlar seslendirme olmadan 3 saniye gösterilir. Notlara `[calmly]`, `[short pause]` gibi ses etiketleri yazabilirsiniz.
-2. **API anahtarı:** anahtar yalnızca çalışan işlem süresince bellekte tutulur, diske yazılmaz. İsterseniz tarayıcınızda hatırlanabilir. Anahtarı girdiğinizde kalan krediniz de gösterilir.
-3. **Hız:** 0,8× ile 2× arası. Ses hızlanır ama tonu değişmez.
-4. **Çözünürlük:** 480p, 720p veya 1080p.
-5. **Slayt geçişi:** *Kesme* (slayt anında değişir) veya *Yumuşak geçiş* (slaytlar 0,4 saniyede birbirine karışır, konuşma geçiş bitince başlar).
-6. **Ses:** varsayılan ses Fatih Yıldırım'dır (`7VqWGAWwo2HMrylfKrcm`). "Seslerimi yükle" düğmesi hesabınızdaki sesleri listeler. Başka bir ses kimliği de yapıştırabilirsiniz. Varsayılan ses kendi hesabınızda yoksa listeden başka bir ses seçin.
+1. Bu sayfanın sağ tarafındaki **Releases** bölümüne tıklayın ve en üstteki sürümü açın.
+2. **SlayttanVideoya-windows-x64.zip** dosyasına tıklayıp indirin.
+3. İndirilenler klasöründe bu dosyaya sağ tıklayın, **Tümünü ayıkla...**'yı seçin ve **Ayıkla**'ya basın. Masaüstü veya Belgeler gibi kalıcı bir yer seçebilirsiniz.
+4. Açılan **SlayttanVideoya** klasöründeki **SlayttanVideoya.exe** dosyasına çift tıklayın. (Yanındaki *_internal* klasörüne dokunmayın; programın parçasıdır.)
+5. İlk açılışta mavi bir "Windows bilgisayarınızı korudu" penceresi çıkabilir. Bu, programın tanınmış bir yayıncıdan gelmediği anlamına gelir. **Ek bilgi**'ye, ardından **Yine de çalıştır**'a tıklayın. Bunu yalnızca bir kez yapmanız gerekir.
+6. Siyah bir pencere açılır ve birkaç saniye içinde program tarayıcınızda görünür. **Siyah pencere program çalıştığı sürece açık kalmalıdır.** İşiniz bitince bu pencereyi sağ üstteki **X** ile kapatın.
 
-Gelişmiş bölümünde model (varsayılan `eleven_v4`) ve dil (varsayılan Türkçe) değiştirilebilir.
+<!-- Ekran görüntüsü: SmartScreen penceresi, "Ek bilgi" ve "Yine de çalıştır" işaretli -->
+<!-- Ekran görüntüsü: siyah pencere ve tarayıcıda açılan program -->
 
-## İfade etiketleri
-"Notlara ifade etiketleri ekle" seçeneği notların arasına ElevenLabs ses etiketleri yerleştirir: `[short pause]`, `[slowly]`, `[calmly]`, `[warmly]`, `[thoughtful]`, `[inhales]`, `[exhales]` gibi. Böylece anlatım duraklamalı, vurgulu ve daha doğal olur. Not metninin kendisi hiçbir zaman değişmez; yalnızca etiketler eklenir.
+Programı sonraki seferlerde açmak için yine **SlayttanVideoya.exe**'ye çift tıklamanız yeterlidir. Kolaylık için dosyaya sağ tıklayıp **Gönder > Masaüstü (kısayol oluştur)** diyebilirsiniz.
 
-- **OpenAI veya Anthropic API anahtarı girerseniz** etiketleri yapay zekâ yerleştirir. `sk-ant-` ile başlayan anahtarlar Claude (`claude-opus-5-5`), diğerleri OpenAI (`gpt-5.6`, yoksa `gpt-5.5`) ile kullanılır. Bu, o hesaptan küçük bir ücret düşer. Anahtar diske yazılmaz.
-- **Anahtar yoksa** etiketler kural tabanlı eklenir: liste maddelerinden önce kısa duraklama, "temel kural şudur" gibi önemli cümlelerde yavaşlama, soru cümlelerinde düşünceli ton, açılış ve kapanışta sıcak ton. Ücretsizdir ve internet gerektirmez. Kural tabanlı ekleme nefes etiketleri kullanmaz.
-- Model bir slaytta metni değiştirirse ya da yanıt veremezse, o slayt için otomatik olarak kurallar kullanılır. İçinde zaten etiket bulunan notlara dokunulmaz.
-- **Etiketleri oluştur ve göster** düğmesiyle sonucu video oluşturmadan önce görebilir, her slaytın metnini elle düzenleyebilirsiniz. Önizleme yapmadan videoyu başlatırsanız etiketler video sırasında eklenir.
+## Mac'e kurulum
 
-Etiketli metin yeni bir metin sayıldığı için ilk seferde yeniden seslendirilir ve etiket karakterleri de krediye dahil olabilir. OpenAI modelini değiştirmek için `SLIDE2VIDEO_OPENAI_MODEL=<model> ./run.sh` kullanabilirsiniz.
+1. Bu sayfanın sağ tarafındaki **Releases** bölümüne tıklayın ve en üstteki sürümü açın.
+2. Mac'inize uygun dosyayı indirin:
+   - Apple M1, M2, M3 veya daha yeni bir Mac için: **SlayttanVideoya-macos-arm64.zip**
+   - Intel işlemcili eski bir Mac için: **SlayttanVideoya-macos-x64.zip**
 
-## Kredi
-Üretilen seslendirmeler `data/tts-cache` klasöründe saklanır. Aynı sunumu farklı hız veya çözünürlükte yeniden oluşturmak kredi harcamaz. Kredi biterse kredi yükleyip tekrar başlatın; yalnızca eksik slaytlar ücretlendirilir.
+   Hangisi olduğunu bilmiyorsanız ekranın sol üstündeki  menüsünden **Bu Mac Hakkında**'ya bakın: "Çip: Apple M…" yazıyorsa ilkini, "İşlemci: Intel" yazıyorsa ikincisini indirin.
+3. İndirilenler klasöründe ZIP dosyasına çift tıklayın. **Slayttan Videoya** uygulaması çıkar. Bu uygulamayı **Uygulamalar** klasörüne sürükleyin.
+4. Uygulamaya **sağ tıklayın** (veya Control tuşuna basılı tutarak tıklayın) ve **Aç**'ı seçin. Çıkan pencerede yine **Aç**'a basın.
+5. Mac "açılamıyor" deyip yalnızca **Bitti** ve **Çöp Sepetine Taşı** düğmelerini gösterirse **Bitti**'ye basın. Sonra  menüsü > **Sistem Ayarları** > **Gizlilik ve Güvenlik** bölümüne gidin, sayfanın altındaki "Slayttan Videoya engellendi" satırında **Yine de Aç**'a tıklayın ve parolanızı girin. Bunu yalnızca bir kez yapmanız gerekir.
+6. Program tarayıcınızda açılır ve ekranda küçük bir "Slayttan Videoya çalışıyor" penceresi görünür. İşiniz bitince bu penceredeki **Kapat** düğmesine basın. Tarayıcıyı yanlışlıkla kapatırsanız **Tarayıcıda aç** ile geri getirebilirsiniz.
 
-Uygulamanın ürettiği her şey `data/` klasöründedir. Yer açmak için bu klasörü silebilirsiniz.
+<!-- Ekran görüntüsü: sağ tık > Aç menüsü -->
+<!-- Ekran görüntüsü: Gizlilik ve Güvenlik sayfasında "Yine de Aç" düğmesi -->
+<!-- Ekran görüntüsü: "Slayttan Videoya çalışıyor" penceresi -->
 
-## Nasıl çalışır
-- Keynote (yoksa LibreOffice, `soffice --headless --convert-to pdf`) sunumu PDF olarak dışa aktarır, PyMuPDF her sayfayı seçilen çözünürlükte görüntüye çevirir.
-- İsteğe bağlı olarak notlara ifade etiketleri eklenir (yapay zekâ veya kurallarla).
-- Her slayt için tek bir ElevenLabs isteği yapılır. Model yalnızca Text-to-Dialogue ile sunuluyorsa uygulama otomatik olarak ona geçer.
-- Ses seviyesi -16 LUFS'a normalize edilir. Her slaytın başına 200 ms (yumuşak geçişte 450 ms), sonuna en az 600 ms sessizlik eklenir ve klip uzunluğu kare sayısıyla birebir eşlenir.
-- Klipler birleştirilir. Her slayt için bir bölüm (chapter) içeren tek bir MP4 oluşur ve dosyanın tamamı bir kez çözülerek kontrol edilir.
+Mac'te slaytlar **Keynote** ile görüntüye çevrilir. Keynote yüklü değilse App Store'dan ücretsiz indirebilirsiniz (Keynote yerine LibreOffice da kurulabilir). İlk videoda Mac, programın Keynote'u kullanması için izin ister; **İzin Ver**'e tıklayın.
 
-Çevrimdışı test için `SLIDE2VIDEO_FAKE_TTS=1 ./run.sh` komutu ElevenLabs yerine macOS'un `say` sesini kullanır (yalnızca macOS).
+---
+
+## ElevenLabs anahtarı nasıl alınır
+
+Seslendirmeyi ElevenLabs adlı bir hizmet yapar. Programın bu hizmeti sizin adınıza kullanabilmesi için bir "API anahtarı" gerekir. Anahtar, hesabınıza ait uzun bir şifre gibidir.
+
+1. **https://elevenlabs.io** adresine gidin ve bir hesap açın (veya giriş yapın).
+2. Seslendirme kredi harcar. Ücretsiz hesabın kredisi kısa bir sunum için yetebilir; daha fazlası için **Subscription** (Abonelik) sayfasından bir paket seçin.
+3. Sol alttaki adınıza tıklayın ve **API Keys** bölümünü açın.
+4. **Create API Key** (Anahtar oluştur) düğmesine basın. Anahtara "Slayttan Videoya" gibi bir ad verin.
+5. İzinler listesinde **Text to Speech** için erişimi açın ve **Voices** için en az okuma (*Read*) izni verin. Sonra **Create**'e basın.
+6. Ekranda görünen anahtarı kopyalayın ve güvenli bir yere (örneğin parola yöneticinize) kaydedin. **Bu anahtar bir daha gösterilmez.** Kimseyle paylaşmayın.
+
+<!-- Ekran görüntüsü: ElevenLabs API Keys sayfası ve izinler -->
+
+## Kısaca kullanım
+
+1. Programı açın (yukarıdaki kurulum adımlarının son adımı).
+2. **Slaytlar** bölümünde PowerPoint dosyanızı (**.pptx**) seçin. Program her slaytı ve notunu listeler. Notlar yalnızca seslendirilir, videoda yazı olarak görünmez.
+3. **ElevenLabs** bölümüne anahtarınızı yapıştırın. Kalan krediniz hemen altında görünür. **Bu tarayıcıda hatırla** kutusunu işaretlerseniz anahtarı her seferinde yeniden girmeniz gerekmez; anahtar bilgisayarınızda başka hiçbir yere yazılmaz.
+4. **Video** bölümünde konuşma hızını, çözünürlüğü (video kalitesi: 480p, 720p veya 1080p) ve slayt geçişini seçin. Emin değilseniz varsayılanları bırakın.
+5. **Videoyu oluştur**'a basın. İlerleme çubuğu dolarken programı kapatmayın.
+6. Video hazır olunca tarayıcıda izleyebilir ve **MP4 indir** ile bilgisayarınıza kaydedebilirsiniz.
+
+<!-- Ekran görüntüsü: programın ana ekranı -->
+
+Aynı sunumu farklı hızda veya kalitede yeniden oluşturmak ek kredi harcamaz; daha önce okunan notlar tekrar kullanılır.
+
+## Konuşmacı notları nasıl anlatıma dönüşür
+
+- PowerPoint'te her slaytın altında **"Notlar"** alanı bulunur (görmüyorsanız alt çubuktaki **Notlar** düğmesine basın). Bu alana slayt ekrandayken söylenmesini istediğiniz metni yazın.
+- Program notları doğrudan **.pptx** dosyasından okur ve seslendirir. **Notlar videoda yazı olarak görünmez**; videoda yalnızca slaytın kendisi görünür ve notlar sesli olarak duyulur.
+- Notu boş olan slayt, sessiz olarak 3 saniye gösterilir.
+- PowerPoint'te **gizlenmiş** slaytlar videoya alınmaz.
+- Notları noktalama işaretleriyle, normal cümleler halinde yazın. Kısaltmaları (ör. "KVKK") okunmasını istediğiniz gibi yazmanız daha doğal bir sonuç verir.
+- İsterseniz **"Notlara ifade etiketleri ekle"** seçeneği anlatıma doğal duraklamalar ve vurgular ekler. Notlarınızın metni değişmez.
+
+<!-- Ekran görüntüsü: PowerPoint'te notlar alanı -->
+
+---
+
+## Sorun giderme
+
+**Program açılmıyor, "bağlantı noktası kullanılıyor" (port) diyor.**
+Program büyük olasılıkla zaten açık. Tarayıcınızda **http://127.0.0.1:8765** adresini deneyin. Açılmazsa bilgisayarı yeniden başlatıp programı tekrar açın.
+
+**Antivirüs programı dosyayı engelledi veya sildi.**
+Program imzasız olduğu için bazı antivirüs programları onu yanlışlıkla şüpheli bulabilir. Dosyayı yalnızca bu sayfadaki **Releases** bölümünden indirdiyseniz antivirüs programınızın "karantina" bölümünden geri yükleyip izin verebilirsiniz. Şirket bilgisayarında bu işlemi bilgi işlem biriminiz yapabilir.
+
+**"ElevenLabs isteği reddetti", "kota" veya "kredi" içeren bir hata aldım.**
+ElevenLabs hesabınızdaki kredi bitmiştir. ElevenLabs'te **Subscription** sayfasından kredi ekleyin ve **Videoyu oluştur**'a yeniden basın. Daha önce seslendirilen slaytlar için tekrar kredi harcanmaz.
+
+**"Anahtar geçersiz" veya "izin yok" hatası aldım.**
+Anahtarı eksiksiz kopyaladığınızdan emin olun. Anahtarın **Text to Speech** ve **Voices** izinleri açık olmalıdır (bkz. "ElevenLabs anahtarı nasıl alınır").
+
+**Slaytlar dışa aktarılamadı (görüntüye çevrilemedi).**
+LibreOffice kurulu mu? Windows'ta bu sayfanın başındaki "Önce LibreOffice'i indirip kurun" adımını uygulayın. Mac'te Keynote veya LibreOffice kurulu olmalıdır. Kurduktan sonra Slayttan Videoya'yı kapatıp yeniden açın ve videoyu tekrar oluşturun.
+
+**Video yarıda kaldı.**
+Program kapatıldıysa yeniden açın ve aynı sunumda **Videoyu oluştur**'a tekrar basın. Tamamlanan seslendirmeler yeniden kullanılır.
