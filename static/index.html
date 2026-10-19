@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Slayttan Videoya</title>
+<style>
+  :root {
+    --bg: #f6f5f2; --card: #fff; --ink: #1d1d1b; --muted: #6b6a66; --line: #e3e1db;
+    --accent: #2f5bea; --accent-ink: #fff; --ok: #1d7a4a; --warn: #9a5b00; --err: #b3261e; --soft: #eef1fd;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #151514; --card: #1e1e1c; --ink: #ecebe7; --muted: #9c9a94; --line: #33322f;
+      --accent: #7c9cff; --accent-ink: #0d1330; --ok: #5cc28c; --warn: #e3a84a; --err: #ff8a80; --soft: #232838; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 24px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); margin: 0 0 24px; }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 14px; font-weight: 600; }
+  h2 .n { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%;
+    background: var(--soft); color: var(--accent); margin-right: 8px; font-size: 12px; }
+  label { display: block; font-weight: 600; margin: 14px 0 6px; }
+  label:first-of-type { margin-top: 0; }
+  .hint { color: var(--muted); font-size: 13px; font-weight: 400; }
+  input[type=text], input[type=password], select {
+    width: 100%; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--bg); color: var(--ink); font: inherit; }
+  input:focus, select:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .row > input, .row > select { flex: 1; min-width: 0; }
+  button { font: inherit; border-radius: 8px; border: 1px solid var(--line); background: var(--card);
+    color: var(--ink); padding: 8px 14px; cursor: pointer; white-space: nowrap; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; padding: 11px 20px; }
+  .drop { border: 2px dashed var(--line); border-radius: 10px; padding: 28px 16px; text-align: center; cursor: pointer; transition: .15s; }
+  .drop.over, .drop:hover { border-color: var(--accent); background: var(--soft); }
+  .drop strong { display: block; font-size: 16px; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; flex-wrap: wrap; }
+  .seg button { border: 0; border-radius: 0; border-right: 1px solid var(--line); }
+  .seg button:last-child { border-right: 0; }
+  .seg button.on { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  .speed { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .speed input[type=range] { flex: 1; min-width: 160px; accent-color: var(--accent); }
+  .speed output { font-variant-numeric: tabular-nums; font-weight: 700; min-width: 48px; }
+  .stats { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 14px 0 0; color: var(--muted); font-size: 14px; }
+  .stats b { color: var(--ink); }
+  details { margin-top: 12px; }
+  summary { cursor: pointer; color: var(--muted); font-size: 14px; }
+  .slides { max-height: 260px; overflow: auto; margin-top: 8px; border-top: 1px solid var(--line); }
+  .slide { display: grid; grid-template-columns: 34px 1fr; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+  .slide .t { font-weight: 600; }
+  .slide .notes { color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .slide.skip { opacity: .5; }
+  .tag { font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--soft); color: var(--accent); margin-left: 6px; font-weight: 600; }
+  .msg { padding: 10px 12px; border-radius: 8px; font-size: 14px; margin-top: 12px; }
+  .msg.err { background: color-mix(in srgb, var(--err) 12%, transparent); color: var(--err); }
+  .msg.warn { background: color-mix(in srgb, var(--warn) 12%, transparent); color: var(--warn); }
+  .msg.ok { background: color-mix(in srgb, var(--ok) 12%, transparent); color: var(--ok); }
+  .bar { height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; margin: 10px 0; }
+  .bar > div { height: 100%; width: 0; background: var(--accent); transition: width .4s; }
+  .log { font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); max-height: 140px; overflow: auto; white-space: pre-wrap; }
+  video { width: 100%; border-radius: 8px; background: #000; margin: 12px 0; }
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  a.button { text-decoration: none; display: inline-block; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Slayttan Videoya</h1>
+  <p class="sub">PowerPoint sunumunu seslendirilmiş videoya çevirir. Her slaytın konuşmacı notları ElevenLabs ile seslendirilir.</p>
+
+  <section>
+    <h2><span class="n">1</span>Slaytlar</h2>
+    <div class="drop" id="drop" tabindex="0" role="button">
+      <strong id="dropTitle">.pptx dosyasını buraya bırakın veya seçmek için tıklayın</strong>
+      <span class="hint" id="dropHint">Konuşmacı notları seslendirme metni olur. Gizli slaytlar atlanır. Notlardaki [calmly] gibi ses etiketleri olduğu gibi kullanılır.</span>
+    </div>
+    <input type="file" id="file" accept=".pptx" class="hidden">
+    <div id="deckInfo" class="hidden">
+      <div class="stats" id="stats"></div>
+      <div id="deckWarn"></div>
+      <div id="creditWarn"></div>
+      <details><summary>Slaytları ve notları göster</summary><div class="slides" id="slideList"></div></details>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">2</span>ElevenLabs</h2>
+    <label for="key">API anahtarı</label>
+    <div class="row">
+      <input type="password" id="key" autocomplete="off" spellcheck="false" placeholder="sk_…">
+      <button id="showKey" type="button">Göster</button>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <label class="hint" style="margin:0;font-weight:400"><input type="checkbox" id="remember"> Bu tarayıcıda hatırla</label>
+    </div>
+    <div class="stats" id="account"></div>
+
+    <label for="voice">Ses <span class="hint">(isteğe bağlı)</span></label>
+    <div class="row">
+      <select id="voice"></select>
+      <button id="loadVoices" type="button">Seslerimi yükle</button>
+    </div>
+    <input type="text" id="customVoice" class="hidden" placeholder="Ses kimliğini (voice ID) yapıştırın" style="margin-top:8px">
+
+    <details>
+      <summary>Gelişmiş: model ve dil</summary>
+      <label for="model">Model</label>
+      <input type="text" id="model">
+      <label for="language">Dil</label>
+      <select id="language">
+        <option value="tr">Türkçe</option>
+        <option value="en">İngilizce</option>
+        <option value="">Otomatik algıla</option>
+      </select>
+    </details>
+  </section>
+
+  <section>
+    <h2><span class="n">3</span>Video</h2>
+    <label for="speed">Hız</label>
+    <div class="speed">
+      <input type="range" id="speed" min="0.8" max="2" step="0.05" value="1">
+      <output id="speedOut">1.00×</output>
+      <div class="seg" id="speedPresets">
+        <button type="button" data-v="1">1×</button><button type="button" data-v="1.1">1.1×</button>
+        <button type="button" data-v="1.2">1.2×</button><button type="button" data-v="1.5">1.5×</button>
+      </div>
+    </div>
+    <label>Çözünürlük</label>
+    <div class="seg" id="res">
+      <button type="button" data-v="480p">480p</button>
+      <button type="button" data-v="720p">720p</button>
+      <button type="button" data-v="1080p" class="on">1080p</button>
+    </div>
+  </section>
+
+  <section>
+    <div class="actions">
+      <button class="primary" id="go" disabled>Videoyu oluştur</button>
+      <span class="hint" id="goHint">Başlamak için bir sunum yükleyin.</span>
+    </div>
+    <div id="progress" class="hidden">
+      <div class="bar"><div id="barFill"></div></div>
+      <div><b id="stage"></b> <span class="hint" id="pct"></span></div>
+      <div class="log" id="log"></div>
+    </div>
+    <div id="error"></div>
+    <div id="result" class="hidden">
+      <div class="msg ok" id="resultInfo"></div>
+      <video id="player" controls preload="metadata"></video>
+      <div class="actions">
+        <a class="button" id="download"><button class="primary" type="button">MP4 indir</button></a>
+        <span class="hint">Hızı veya çözünürlüğü değiştirip yeniden oluşturabilirsiniz. Seslendirme tekrar kullanılır, ek kredi harcanmaz.</span>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const FATIH = '7VqWGAWwo2HMrylfKrcm';
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} },
+};
+let job = null, cfg = {}, polling = null, resolution = '1080p';
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmtTime = s => { s = Math.round(s); return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; };
+function showError(text) { $('error').innerHTML = text ? `<div class="msg err">${esc(text)}</div>` : ''; }
+
+function setVoices(list) {
+  const sel = $('voice'), prev = sel.value || store.get('voice') || FATIH;
+  const opts = [{voice_id: FATIH, name: 'Fatih Yıldırım (Derin, Net ve Dolgun)'}]
+    .concat(list.filter(v => v.voice_id !== FATIH));
+  sel.innerHTML = opts.map(v => `<option value="${esc(v.voice_id)}">${esc(v.name)}${v.voice_id === FATIH ? ' (varsayılan)' : ''}${v.category ? ' · ' + esc(v.category) : ''}</option>`).join('')
+    + '<option value="__custom">Başka bir ses kimliği…</option>';
+  sel.value = opts.some(v => v.voice_id === prev) ? prev : FATIH;
+  if (!opts.some(v => v.voice_id === prev) && prev !== FATIH && prev) { sel.value = '__custom'; $('customVoice').value = prev; }
+  $('customVoice').classList.toggle('hidden', sel.value !== '__custom');
+}
+
+async function api(path, opts = {}) {
+  const r = await fetch(path, opts);
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || `İstek başarısız oldu (${r.status})`);
+  return data;
+}
+
+async function loadAccount() {
+  const key = $('key').value.trim();
+  $('account').innerHTML = '';
+  if (!key) return;
+  try {
+    const a = await api('/api/account', {headers: {'X-Api-Key': key}});
+    if (a.limit != null) {
+      const left = a.limit - a.used;
+      $('account').innerHTML = `<span>Kalan kredi: <b>${left.toLocaleString('tr-TR')}</b> / ${a.limit.toLocaleString('tr-TR')}</span><span>Paket: <b>${esc(a.tier || '?')}</b></span>`;
+      $('account').dataset.left = left;
+      updateEstimate();
+    }
+  } catch (e) { $('account').innerHTML = `<span style="color:var(--err)">${esc(e.message)}</span>`; }
+}
+
+async function loadVoices() {
+  const key = $('key').value.trim();
+  if (!key) { showError('Önce API anahtarınızı girin.'); return; }
+  $('loadVoices').disabled = true; $('loadVoices').textContent = 'Yükleniyor…';
+  try { setVoices((await api('/api/voices', {headers: {'X-Api-Key': key}})).voices); showError(''); }
+  catch (e) { showError(e.message); }
+  finally { $('loadVoices').disabled = false; $('loadVoices').textContent = 'Seslerimi yükle'; }
+}
+
+function renderDeck() {
+  $('deckInfo').classList.remove('hidden');
+  $('dropTitle').textContent = job.name;
+  $('dropHint').textContent = 'Değiştirmek için tıklayın veya yeni dosya bırakın';
+  const visible = job.slides.filter(s => !s.hidden), voiced = visible.filter(s => s.notes);
+  const chars = voiced.reduce((a, s) => a + s.chars, 0);
+  $('stats').innerHTML = `<span><b>${visible.length}</b> slayt</span><span><b>${voiced.length}</b> seslendirmeli</span>`
+    + (job.slides.length > visible.length ? `<span><b>${job.slides.length - visible.length}</b> gizli (atlanacak)</span>` : '')
+    + `<span><b>${chars.toLocaleString('tr-TR')}</b> karakter ≈ ilk çalıştırmada ${chars.toLocaleString('tr-TR')} kredi</span>`;
+  $('stats').dataset.chars = chars;
+  const silent = visible.filter(s => !s.notes).map(s => s.slide);
+  $('deckWarn').innerHTML = silent.length ? `<div class="msg warn">${silent.length > 1 ? `${silent.join(', ')} numaralı slaytlarda` : `${silent[0]} numaralı slaytta`} konuşmacı notu yok. Seslendirme olmadan 3 saniye gösterilecek.</div>` : '';
+  $('slideList').innerHTML = job.slides.map(s => `<div class="slide ${s.hidden ? 'skip' : ''}"><div class="hint">${s.slide}</div><div><div class="t">${esc(s.title)}${s.hidden ? '<span class="tag">gizli</span>' : ''}${!s.notes && !s.hidden ? '<span class="tag">not yok</span>' : ''}</div><div class="notes">${esc(s.notes || '—')}</div></div></div>`).join('');
+  updateEstimate();
+}
+
+function updateEstimate() {
+  const left = +$('account').dataset.left, chars = +$('stats').dataset.chars;
+  $('creditWarn').innerHTML = (job && !isNaN(left) && chars > left) ? `<div class="msg warn">Bu sunum yaklaşık ${chars.toLocaleString('tr-TR')} kredi gerektiriyor, hesapta ${left.toLocaleString('tr-TR')} kredi kaldı. Bu sunum için üretilmiş seslendirmeler tekrar kullanılır; kredi yükleyip yeniden çalıştırabilirsiniz.</div>` : '';
+  refreshGo();
+}
+
+function refreshGo() {
+  const running = job && job.status === 'running';
+  $('go').disabled = !job || running || (!$('key').value.trim() && !cfg.fake_tts);
+  $('goHint').textContent = !job ? 'Başlamak için bir sunum yükleyin.' : running ? 'İşleniyor…'
+    : (!$('key').value.trim() && !cfg.fake_tts) ? 'API anahtarınızı girin.' : '';
+}
+
+async function upload(file) {
+  if (!file) return;
+  if (!file.name.toLowerCase().endsWith('.pptx')) { showError('Lütfen bir .pptx dosyası seçin.'); return; }
+  showError(''); $('result').classList.add('hidden'); $('progress').classList.add('hidden');
+  $('dropTitle').textContent = file.name + ' okunuyor…';
+  const fd = new FormData(); fd.append('deck', file);
+  try { job = await api('/api/upload', {method: 'POST', body: fd}); store.set('job', job.id); renderDeck(); }
+  catch (e) { showError(e.message); $('dropTitle').textContent = '.pptx dosyasını buraya bırakın veya seçmek için tıklayın'; }
+}
+
+function renderJob() {
+  refreshGo();
+  $('progress').classList.toggle('hidden', !(job.status === 'running' || job.status === 'error' && job.log.length));
+  $('barFill').style.width = (job.progress * 100) + '%';
+  $('stage').textContent = job.stage;
+  $('pct').textContent = job.status === 'running' ? Math.round(job.progress * 100) + '%' : '';
+  $('log').textContent = job.log.slice(-60).join('\n');
+  $('log').scrollTop = 1e9;
+  showError(job.status === 'error' ? job.error : '');
+  if (job.status === 'done') {
+    const r = job.result, s = job.settings || {};
+    $('progress').classList.add('hidden');
+    $('result').classList.remove('hidden');
+    $('resultInfo').textContent = `Hazır: ${r.file}. ${r.slides} slayt, ${fmtTime(r.seconds)}, ${(r.bytes / 1048576).toFixed(1).replace('.', ',')} MB, ${s.resolution}, ${s.speed}× hız.`;
+    const src = `/api/jobs/${job.id}/video?v=${encodeURIComponent(r.file)}`;
+    if ($('player').getAttribute('src') !== src) $('player').src = src;
+    $('download').href = `/api/jobs/${job.id}/video?download=1&v=${encodeURIComponent(r.file)}`;
+  } else if (job.status === 'running') {
+    $('result').classList.add('hidden');
+  }
+}
+
+async function poll() {
+  clearTimeout(polling);
+  try { job = await api(`/api/jobs/${job.id}`); renderJob(); } catch (e) { showError(e.message); return; }
+  if (job.status === 'running') polling = setTimeout(poll, 1500);
+}
+
+async function start() {
+  const voice = $('voice').value === '__custom' ? $('customVoice').value.trim() : $('voice').value;
+  if (!voice) { showError('Bir ses seçin veya ses kimliği yapıştırın.'); return; }
+  store.set('voice', voice);
+  showError('');
+  try {
+    job = await api(`/api/jobs/${job.id}/start`, {method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({api_key: $('key').value.trim(), voice_id: voice, speed: +$('speed').value,
+        resolution, model: $('model').value.trim(), language: $('language').value})});
+    renderJob(); poll();
+  } catch (e) { showError(e.message); }
+}
+
+// ---- wiring
+const drop = $('drop');
+drop.onclick = () => $('file').click();
+drop.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('file').click(); } };
+$('file').onchange = e => upload(e.target.files[0]);
+['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave', 'drop'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => upload(e.dataTransfer.files[0]));
+
+$('showKey').onclick = () => { const k = $('key'); k.type = k.type === 'password' ? 'text' : 'password'; $('showKey').textContent = k.type === 'password' ? 'Göster' : 'Gizle'; };
+$('key').addEventListener('input', () => { if ($('remember').checked) store.set('key', $('key').value.trim()); refreshGo(); });
+$('key').addEventListener('change', loadAccount);
+$('remember').onchange = () => store.set('key', $('remember').checked ? $('key').value.trim() : null);
+$('loadVoices').onclick = loadVoices;
+$('voice').onchange = () => $('customVoice').classList.toggle('hidden', $('voice').value !== '__custom');
+
+function setSpeed(v) { $('speed').value = v; $('speedOut').textContent = (+v).toFixed(2) + '×'; store.set('speed', v);
+  document.querySelectorAll('#speedPresets button').forEach(b => b.classList.toggle('on', +b.dataset.v === +v)); }
+$('speed').oninput = () => setSpeed($('speed').value);
+document.querySelectorAll('#speedPresets button').forEach(b => b.onclick = () => setSpeed(b.dataset.v));
+function setRes(v) { resolution = v; store.set('res', v); document.querySelectorAll('#res button').forEach(b => b.classList.toggle('on', b.dataset.v === v)); }
+document.querySelectorAll('#res button').forEach(b => b.onclick = () => setRes(b.dataset.v));
+$('go').onclick = start;
+
+(async function init() {
+  cfg = await api('/api/config').catch(() => ({}));
+  $('model').value = cfg.default_model || 'eleven_v4';
+  setVoices([]);
+  setSpeed(store.get('speed') || 1);
+  setRes(store.get('res') || '1080p');
+  const saved = store.get('key');
+  if (saved) { $('key').value = saved; $('remember').checked = true; loadAccount(); }
+  if (cfg.free_mb != null && cfg.free_mb < 1500)
+    $('error').innerHTML = `<div class="msg warn">Diskte yalnızca ${cfg.free_mb} MB boş alan var. Uzun bir 1080p video oluşturulurken yaklaşık 1 GB alan gerekir.</div>`;
+  const last = store.get('job');
+  if (last) {
+    try { job = await api(`/api/jobs/${last}`); renderDeck(); renderJob(); if (job.status === 'running') poll(); }
+    catch { store.set('job', null); }
+  }
+  refreshGo();
+})();
+</script>
+</body>
+</html>
