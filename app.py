@@ -4,6 +4,7 @@ Run:  ./run.sh   (serves http://127.0.0.1:8765, local machine only)
 The ElevenLabs (and optional OpenAI/Anthropic) API keys are held in memory for the running job only; it is never written to disk.
 """
 import json
+import os
 import shutil
 import threading
 import traceback
@@ -16,7 +17,8 @@ import pipeline
 import tagging
 
 ROOT = Path(__file__).resolve().parent
-DATA = ROOT / 'data'
+# Packaged builds point this at a user-writable folder (see launcher.py).
+DATA = Path(os.environ.get('SLIDE2VIDEO_DATA') or ROOT / 'data')
 JOBS = DATA / 'jobs'
 CACHE = DATA / 'tts-cache'
 JOBS.mkdir(parents=True, exist_ok=True)
